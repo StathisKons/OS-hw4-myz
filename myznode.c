@@ -4,24 +4,33 @@
 #include <string.h>
 #include <time.h>
 
-
-
 struct myznode{
 	char fname[1000];
 	struct stat info; 
 	int nested;
 
 	struct myznode* next;
-	struct myznode* contents;
+	struct myznode* contents; // If the node corresponds to a directory this is a list of its contents
 };
 
 typedef struct myznode myznode;
 typedef struct myznode* Myznode;
 
-
-Myznode myznode_init(char* fname, struct stat info, int nested)
+struct myzdata
 {
-	Myznode node = malloc(sizeof(myznode));
+	int capacity;
+	int curelements;
+	
+	Myznode* array;
+};
+
+typedef struct myzdata myzdata;
+typedef myzdata* Myzdata;
+
+
+static Myznode myznode_init(char* fname, struct stat info, int nested)
+{
+	Myznode node = (Myznode)malloc(sizeof(myznode));
 
 	node->info = info;
 	memset(node->fname , 0, 1000);
@@ -36,6 +45,41 @@ Myznode myznode_init(char* fname, struct stat info, int nested)
 	return node;
 
 }
+
+static void expand(Myzdata data)
+{
+	data->capacity *= 2;
+	data->array = (Myznode*)realloc(data->array, data->capacity * sizeof(Myznode));
+}
+
+
+
+void myznode_insert(Myzdata data, char* fname, struct stat info, int nested)
+{
+	if(data->curelements == data->capacity)
+	{
+		expand(data);
+	}
+	Myznode node = myznode_init(fname, info, nested);
+	data->array[data->curelements] = node;
+	data->curelements++;
+}
+
+Myzdata myz_init(int capacity)
+{
+	Myzdata data = (Myzdata)malloc(sizeof(myzdata));
+
+	data->capacity = capacity;
+	data->array = (Myznode*)malloc(sizeof(Myznode)*capacity);
+
+	for(int i = 0; i < capacity; i++)
+		data->array[i] = NULL;
+
+	return data;
+
+}
+
+
 
 
 // Retrieve file permissions in Unix-like format from a Myznode using the stat structure
