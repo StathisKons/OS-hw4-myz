@@ -76,7 +76,6 @@ Myzdata myz_init(int capacity)
 		data->array[i] = NULL;
 
 	return data;
-
 }
 
 
