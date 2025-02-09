@@ -30,8 +30,6 @@ typedef struct myzdata myzdata;
 typedef myzdata* Myzdata;
 
 
-static Myznode myznode_init(char* fname, struct stat info, int nested);
-
 void myznode_insert(Myzdata data, char* fname, struct stat info, int nested);
 
 Myzdata myz_init(int capacity);
@@ -49,4 +47,5 @@ void getModTime(Myznode node, char* timestamp);
 
 void myz_print(Myzdata data);
 
+void myznode_addEntry(Myznode node, int index);
 #endif
