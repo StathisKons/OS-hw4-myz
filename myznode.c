@@ -3,14 +3,23 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdio.h>
+
+int isDirectory(struct stat st)
+{
+	return S_ISDIR(st.st_mode);
+}
 
 struct myznode{
 	char fname[1000];
 	struct stat info; 
 	int nested;
 
-	struct myznode* next;
-	struct myznode* contents; // If the node corresponds to a directory this is a list of its contents
+
+	int contentcap;
+	int contentnum;
+	int* contents;
+
 };
 
 typedef struct myznode myznode;
@@ -37,9 +46,11 @@ static Myznode myznode_init(char* fname, struct stat info, int nested)
 	strcpy(node->fname, fname);
 
 	node->nested = nested;
-	if(!nested)
+	if(nested)
 	{
-		node->contents = NULL;
+		node->contentcap = 10;
+		node->contentnum = 0;
+		node->contents = malloc(sizeof(int) * node->contentcap);
 	}
 
 	return node;
@@ -52,17 +63,31 @@ static void expand(Myzdata data)
 	data->array = (Myznode*)realloc(data->array, data->capacity * sizeof(Myznode));
 }
 
+static void expandContents(Myznode node)
+{
+	node->contentcap *= 2;
+	node->contents = realloc(node->contents, node->contentcap * sizeof(int));
+}
+
+void myznode_addcontent(Myznode node, int index)
+{
+	node->contents[node->contentnum] = index;
+	node->contentnum++;
+	if(node->contentnum == node->contentcap)
+		expandContents(node);
+}
 
 
 void myznode_insert(Myzdata data, char* fname, struct stat info, int nested)
 {
+	
+	Myznode node = myznode_init(fname, info, nested);
+	data->array[data->curelements] = node;
+	data->curelements++;
 	if(data->curelements == data->capacity)
 	{
 		expand(data);
 	}
-	Myznode node = myznode_init(fname, info, nested);
-	data->array[data->curelements] = node;
-	data->curelements++;
 }
 
 Myzdata myz_init(int capacity)
@@ -75,9 +100,19 @@ Myzdata myz_init(int capacity)
 	for(int i = 0; i < capacity; i++)
 		data->array[i] = NULL;
 
+	data->curelements = 0;
+
 	return data;
 }
 
+void myz_print(Myzdata data)
+{
+	for(int i = 0; i < data->curelements; i++)
+	{
+		printf("%s\n", data->array[i]->fname);
+	}
+
+}
 
 
 
@@ -126,6 +161,7 @@ void getChangeTime(Myznode node, char* timestamp)
 {
 	strcpy(timestamp, ctime(&node->info.st_ctime));
 }
+
 
 
 
