@@ -36,6 +36,8 @@ void myznode_insert(Myzdata data, char* fname, struct stat info, int nested);
 
 Myzdata myz_init(int capacity);
 
+void Myz_destroy(Myzdata data);
+
 // Retrieve file permissions in Unix-like format from a Myznode using the stat structure
 int getPermissions(Myznode node);
 

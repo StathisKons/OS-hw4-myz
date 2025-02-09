@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
+#include "vector.h"
 
 int isDirectory(struct stat st)
 {
@@ -16,10 +17,8 @@ struct myznode{
 	int nested;
 
 
-	int contentcap;
-	int contentnum;
-	int* contents;
 
+	Vector entries;
 };
 
 typedef struct myznode myznode;
@@ -48,9 +47,8 @@ static Myznode myznode_init(char* fname, struct stat info, int nested)
 	node->nested = nested;
 	if(nested)
 	{
-		node->contentcap = 10;
-		node->contentnum = 0;
-		node->contents = malloc(sizeof(int) * node->contentcap);
+		node->entries = (Vector)malloc(sizeof(vector));
+		vec_init(node->entries);
 	}
 
 	return node;
@@ -63,18 +61,10 @@ static void expand(Myzdata data)
 	data->array = (Myznode*)realloc(data->array, data->capacity * sizeof(Myznode));
 }
 
-static void expandContents(Myznode node)
-{
-	node->contentcap *= 2;
-	node->contents = realloc(node->contents, node->contentcap * sizeof(int));
-}
 
-void myznode_addcontent(Myznode node, int index)
+void myznode_addEntry(Myznode node, int index)
 {
-	node->contents[node->contentnum] = index;
-	node->contentnum++;
-	if(node->contentnum == node->contentcap)
-		expandContents(node);
+	vec_insert(node->entries, index);
 }
 
 
@@ -112,6 +102,24 @@ void myz_print(Myzdata data)
 		printf("%s\n", data->array[i]->fname);
 	}
 
+}
+
+void Myz_destroy(Myzdata data)
+{
+	Myznode node;
+	for(int i = 0; i < data->curelements; i++)
+	{
+		node = data->array[i];
+		if(node->nested)
+		{
+			vec_destroy(node->entries);
+			free(node->entries);
+		}
+		free(node);
+	}
+
+	free(data->array);
+	free(data);
 }
 
 
