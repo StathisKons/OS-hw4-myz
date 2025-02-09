@@ -98,15 +98,19 @@ Myzdata myz_init(int capacity)
 void myz_print(Myzdata data)
 {
 	Myznode node;
+	int* printed = malloc(data->curelements * sizeof(int));
 	for(int i = 0; i < data->curelements; i++)
 	{
 		node = data->array[i];
-		printf("%s\n", node->fname);
+		if(printed[i] != 1)
+			printf("%s\n", node->fname);
+		printed[i] = 1;
 		if(node->nested)
 		{
 			for(int j = 0; j < node->entries->curelements; j++)
 			{
        				int ind = node->entries->entries[j];
+				printed[node->entries->entries[j]] = 1;
 				printf("  %s\n", data->array[ind]->fname);
 			}
 		}

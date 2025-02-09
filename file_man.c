@@ -66,7 +66,6 @@ int readDirectory(char* dirname, Myzdata data, Myznode node)
 		nested = 0;
 		files++;
 		int r = stat(entries->d_name, &fs);
-		printf("%s\n", entries->d_name);
 		if(entries->d_type == 4)
 			nested = 1;
 
@@ -107,7 +106,6 @@ int main()
 	countFiles("./something", &entries);
 	Myzdata data = myz_init(entries);
 	readDirectory("./something", data, NULL);
-	printf("PRINTING DATA: \n\n");
 	myz_print(data);
 
 	Myz_destroy(data);
