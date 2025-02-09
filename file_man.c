@@ -26,7 +26,6 @@ static int countFiles(char* dirname, int* entriesn)
 		files++;
 		(*entriesn)++;
 		int r = stat(entries->d_name, &fs);
-		printf("%s\n", entries->d_name);
 		if(entries->d_type == 4 && strcmp(entries->d_name, "..") && strcmp(entries->d_name, "."))
 		{
 			char dirpath[1000];
@@ -47,7 +46,7 @@ static int countFiles(char* dirname, int* entriesn)
 }
 
 // Function for reading a directory's subdirectories and files recursively
-int readDirectory(char* dirname, Myzdata data)
+int readDirectory(char* dirname, Myzdata data, Myznode node)
 {
 	int nested;
 	DIR* directory;
@@ -72,6 +71,10 @@ int readDirectory(char* dirname, Myzdata data)
 			nested = 1;
 
 		myznode_insert(data, entries->d_name, fs, nested);
+		if(node != NULL)
+		{
+			myznode_addEntry(node, data->curelements -1);
+		}
 		
 		if(entries->d_type == 4 && strcmp(entries->d_name, "..") && strcmp(entries->d_name, "."))
 		{
@@ -82,7 +85,7 @@ int readDirectory(char* dirname, Myzdata data)
 			strcat(dirpath, entries->d_name);
 		
 
-			readDirectory(dirpath, data);
+			readDirectory(dirpath, data, data->array[data->curelements -1]);
 
 		}
 	}
@@ -102,11 +105,12 @@ int main()
 {
 	int entries = 0;
 	countFiles("./something", &entries);
-	printf("%d\n", entries);
 	Myzdata data = myz_init(entries);
-	readDirectory("./something", data);
+	readDirectory("./something", data, NULL);
 	printf("PRINTING DATA: \n\n");
 	myz_print(data);
+
+	Myz_destroy(data);
 	return 0;
 }
 
