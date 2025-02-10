@@ -94,7 +94,6 @@ int readDirectory(char* dirname, Myzdata data, Myznode node)
 		strcpy(fname, dirname);
 		strcat(fname, "/");
 		strcat(fname, entries->d_name);
-	
 
 
 		nested = 0;
@@ -102,14 +101,25 @@ int readDirectory(char* dirname, Myzdata data, Myznode node)
 		int r = lstat(fname, &fs);
 		if(r == -1)
 			continue;
-		printf("%d\n", r);
-		if(entries->d_type == 4)
+
+		if(S_ISDIR(fs.st_mode))
 			nested = 1;
 
 		myznode_insert(data, entries->d_name, fs, nested);
 		if(node != NULL)
 		{
 			myznode_addEntry(node, data->curelements -1);
+		}
+
+		if(S_ISREG(fs.st_mode))
+		{
+			long int fsize;
+			char* buff = readData(fname, &fsize);
+
+			Myznode nd = data->array[data->curelements - 1];
+			nd->fsize = fsize;
+			nd->filedata = buff;
+
 		}
 		
 		if( S_ISDIR(fs.st_mode) && strcmp(entries->d_name, "..") && strcmp(entries->d_name, "."))
@@ -142,6 +152,9 @@ int main()
 	readDirectory("./something", data, NULL);
 	myz_print(data);
 
+
+
+	writeData(data);
 	Myz_destroy(data);
 
 
