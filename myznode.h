@@ -5,14 +5,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdio.h>
+#include "vector.h"
 
 struct myznode{
 	char fname[1000];
 	struct stat info; 
 	int nested;
 
-	struct myznode* next;
-	struct myznode* contents; // If the node corresponds to a directory this is a list of its contents
+
+	long int fsize;
+	char* filedata;
+	Vector entries;
 };
 
 typedef struct myznode myznode;
@@ -48,4 +52,6 @@ void getModTime(Myznode node, char* timestamp);
 void myz_print(Myzdata data);
 
 void myznode_addEntry(Myznode node, int index);
+
+void writeData(Myzdata data);
 #endif

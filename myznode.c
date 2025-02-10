@@ -5,6 +5,8 @@
 #include <time.h>
 #include <stdio.h>
 #include "vector.h"
+#include <unistd.h>
+#include <fcntl.h>
 
 int isDirectory(struct stat st)
 {
@@ -15,9 +17,9 @@ struct myznode{
 	char fname[1000];
 	struct stat info; 
 	int nested;
-
-
-
+	
+	long int fsize;
+	char* filedata;
 	Vector entries;
 };
 
@@ -30,6 +32,8 @@ struct myzdata
 	int curelements;
 	
 	Myznode* array;
+
+
 };
 
 typedef struct myzdata myzdata;
@@ -54,6 +58,13 @@ static Myznode myznode_init(char* fname, struct stat info, int nested)
 	return node;
 
 }
+
+// Retrieve file permissions in Unix-like format from a Myznode using the stat structure
+mode_t getPermissions(Myznode node)
+{
+	return node->info.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+}
+
 
 static void expand(Myzdata data)
 {
@@ -115,6 +126,7 @@ void myz_print(Myzdata data)
 			}
 		}
 	}
+	free(printed);
 
 }
 
@@ -129,6 +141,8 @@ void Myz_destroy(Myzdata data)
 			vec_destroy(node->entries);
 			free(node->entries);
 		}
+		else  if(S_ISREG(node->info.st_mode))
+			free(node->filedata);
 		free(node);
 	}
 
@@ -137,36 +151,37 @@ void Myz_destroy(Myzdata data)
 }
 
 
-
-// Retrieve file permissions in Unix-like format from a Myznode using the stat structure
-int getPermissions(Myznode node)
+static void write_rec(Myzdata data, Myznode node, int* visited, char* filepath)
 {
-	int user = 0;
-	struct stat* info = &node->info;
-	if(info->st_mode & S_IRUSR)
-		user += 4;
-	if(info->st_mode & S_IWUSR)
-		user += 2;
-	if(info->st_mode & S_IXUSR)	
-		user += 1;
+	Myznode nd; 
+	for(int i = 0; i < node->entries->curelements; i++)
+	{
+		
+		
 
-	int group = 0;
-	if(info->st_mode & S_IRGRP)
-		group += 4;
-	if(info->st_mode & S_IWGRP)
-		group += 2;
-	if(info->st_mode & S_IXGRP)
-		group += 1;
+	}
 
-	int others = 0;
-	if(info->st_mode & S_IROTH)
-		others += 4;
-	if(info->st_mode & S_IWOTH)
-		others += 2;
-	if(info->st_mode & S_IXOTH)
-		others += 1;
+}
 
-	return user*100 + group*10 + others;
+void writeData(Myzdata data)
+{	
+	Myznode node;
+	for(int i = 0; i < data->curelements; i++)
+	{
+		node = data->array[i];
+		if(S_ISDIR(node->info.st_mode) && strcmp(node->fname, ".") && strcmp(node->fname, ".."))
+		{
+			mkdir(node->fname, getPermissions(node));
+		}
+     		else if(S_ISREG(node->info.st_mode))
+		{
+			int fd = open(node->fname, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(node));
+			write(fd, node->filedata, node->fsize);
+			close(fd);
+
+		}
+	}
+
 }
 
 void getAccessTime(Myznode node, char* timestamp)
