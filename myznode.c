@@ -161,7 +161,6 @@ static void write_rec(Myzdata data, Myznode node, int* visited, char* filepath)
 
 		if(visited[ind] == 1) continue;
 		else visited[ind] = 1;
-		printf("Inside");
 
 		if(S_ISDIR(nd->info.st_mode) && strcmp(nd->fname, "..") && strcmp(nd->fname, "."))
 		{
@@ -208,7 +207,6 @@ void writeData(Myzdata data)
 
 		if(S_ISDIR(nd->info.st_mode) && strcmp(nd->fname, "..") && strcmp(nd->fname, "."))
 		{
-			printf("HEre\n");
     			char npath[300];
 			memset(npath, 0, 300);
 			strcpy(npath, filepath);
@@ -216,11 +214,9 @@ void writeData(Myzdata data)
 			strcat(npath, nd->fname);
 			mkdir(npath, getPermissions(nd));
 			write_rec(data, nd, visited, npath);
-			printf("Here\n");
 		}
      		else if(S_ISREG(nd->info.st_mode))
      		{
-			printf("Here2");
     			char npath[300];
 			memset(npath, 0, 300);
 			strcpy(npath, filepath);
@@ -228,7 +224,6 @@ void writeData(Myzdata data)
 			strcat(npath, nd->fname);
 			int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(nd));
 			write(fd, nd->filedata, nd->fsize);
-			printf("INSIDE");
 			close(fd);
 		}
 		
