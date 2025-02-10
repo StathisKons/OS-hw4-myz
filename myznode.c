@@ -62,7 +62,7 @@ static Myznode myznode_init(char* fname, struct stat info, int nested)
 // Retrieve file permissions in Unix-like format from a Myznode using the stat structure
 mode_t getPermissions(Myznode node)
 {
-	return node->info.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+	return node->info.st_mode & 0777;
 }
 
 
@@ -163,7 +163,7 @@ static void write_rec(Myzdata data, Myznode node, int* visited, char* filepath)
 		else visited[ind] = 1;
 		printf("Inside");
 
-		if(S_ISDIR(nd->info.st_mode))
+		if(S_ISDIR(nd->info.st_mode) && strcmp(nd->fname, "..") && strcmp(nd->fname, "."))
 		{
 			char npath[300];
 			memset(npath, 0, 300);
@@ -174,7 +174,7 @@ static void write_rec(Myzdata data, Myznode node, int* visited, char* filepath)
 			mkdir(npath, getPermissions(nd));
 			write_rec(data, nd, visited, npath);
 		}
-		else
+		else if(S_ISREG(nd->info.st_mode))
 		{
 			char npath[300];
 			memset(npath, 0, 300);
@@ -201,11 +201,14 @@ void writeData(Myzdata data)
 
 	for(int i = 0; i < data->curelements; i++)
 	{
+		nd = data->array[i];
 		if(visited[i] == 1) continue;
 		else visited[i] = 1;
+		
 
-		if(S_ISDIR(nd->info.st_mode))
-		{	
+		if(S_ISDIR(nd->info.st_mode) && strcmp(nd->fname, "..") && strcmp(nd->fname, "."))
+		{
+			printf("HEre\n");
     			char npath[300];
 			memset(npath, 0, 300);
 			strcpy(npath, filepath);
@@ -213,15 +216,17 @@ void writeData(Myzdata data)
 			strcat(npath, nd->fname);
 			mkdir(npath, getPermissions(nd));
 			write_rec(data, nd, visited, npath);
+			printf("Here\n");
 		}
-     		else
+     		else if(S_ISREG(nd->info.st_mode))
      		{
+			printf("Here2");
     			char npath[300];
 			memset(npath, 0, 300);
 			strcpy(npath, filepath);
 			strcat(npath, "/");
 			strcat(npath, nd->fname);
-			int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(node));
+			int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(nd));
 			write(fd, nd->filedata, nd->fsize);
 			printf("INSIDE");
 			close(fd);
