@@ -156,31 +156,80 @@ static void write_rec(Myzdata data, Myznode node, int* visited, char* filepath)
 	Myznode nd; 
 	for(int i = 0; i < node->entries->curelements; i++)
 	{
-		
-		
+		int ind = node->entries->entries[i];
+		nd = data->array[ind];
 
+		if(visited[ind] == 1) continue;
+		else visited[ind] = 1;
+		printf("Inside");
+
+		if(S_ISDIR(nd->info.st_mode))
+		{
+			char npath[300];
+			memset(npath, 0, 300);
+			strcpy(npath, filepath);
+			strcat(npath, "/");
+			strcat(npath, nd->fname);
+			
+			mkdir(npath, getPermissions(nd));
+			write_rec(data, nd, visited, npath);
+		}
+		else
+		{
+			char npath[300];
+			memset(npath, 0, 300);
+			strcpy(npath, filepath);
+			strcat(npath, "/");
+			strcat(npath, nd->fname);
+			
+			int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(nd));
+			write(fd, nd->filedata, nd->fsize);
+			close(fd);
+		}
 	}
 
 }
 
+
 void writeData(Myzdata data)
 {	
 	Myznode node;
+	int* visited = calloc(data->curelements, sizeof(int));
+	char filepath[] = "something2";
+	mkdir(filepath, 0777);
+	Myznode nd;
+
 	for(int i = 0; i < data->curelements; i++)
 	{
-		node = data->array[i];
-		if(S_ISDIR(node->info.st_mode) && strcmp(node->fname, ".") && strcmp(node->fname, ".."))
-		{
-			mkdir(node->fname, getPermissions(node));
-		}
-     		else if(S_ISREG(node->info.st_mode))
-		{
-			int fd = open(node->fname, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(node));
-			write(fd, node->filedata, node->fsize);
-			close(fd);
+		if(visited[i] == 1) continue;
+		else visited[i] = 1;
 
+		if(S_ISDIR(nd->info.st_mode))
+		{	
+    			char npath[300];
+			memset(npath, 0, 300);
+			strcpy(npath, filepath);
+			strcat(npath, "/");
+			strcat(npath, nd->fname);
+			mkdir(npath, getPermissions(nd));
+			write_rec(data, nd, visited, npath);
 		}
+     		else
+     		{
+    			char npath[300];
+			memset(npath, 0, 300);
+			strcpy(npath, filepath);
+			strcat(npath, "/");
+			strcat(npath, nd->fname);
+			int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(node));
+			write(fd, nd->filedata, nd->fsize);
+			printf("INSIDE");
+			close(fd);
+		}
+		
 	}
+
+	free(visited);
 
 }
 
