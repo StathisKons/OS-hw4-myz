@@ -5,6 +5,7 @@
 #include <string.h>
 #include "myznode.h"
 #include <fcntl.h>
+#include <wait.h>
 
 char* readData(char* filepath, long int* size)
 {
@@ -141,15 +142,28 @@ int readDirectory(char* dirname, Myzdata data, Myznode node)
 	return 0;
 }
 
+void compressAndInsert(char* dirname, Myzdata data, Myznode node)
+{
+	int pid = fork();
+	if(pid == 0)
+	{
+		char* argv[] = {"gzip" ,"-r", dirname, NULL};
+		execvp("gzip", argv);
+	}
+	wait(NULL);
+
+	readDirectory(dirname, data, node);
+
+}
 
 
 
 int main()
 {
 	int entries = 0;
-	countFiles("./something", &entries);
+	countFiles("something3", &entries);
 	Myzdata data = myz_init(entries);
-	readDirectory("./something", data, NULL);
+	compressAndInsert("something3", data, NULL);
 	myz_print(data);
 
 
