@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include "vector.h"
 
-struct myznode{
+struct myznode {
 	char fname[1000];
 	struct stat info; 
 	int nested;
@@ -42,7 +42,7 @@ Myzdata myz_init(int capacity);
 void Myz_destroy(Myzdata data);
 
 // Retrieve file permissions in Unix-like format from a Myznode using the stat structure
-int getPermissions(Myznode node);
+mode_t getPermissions(Myznode node);
 
 void getChangeTime(Myznode node, char* timestamp);
 
