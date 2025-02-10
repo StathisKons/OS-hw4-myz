@@ -72,7 +72,7 @@ static int countFiles(char* dirname, int* entriesn)
 
 
 // Function for reading a directory's subdirectories and files recursively
-int readDirectory(char* dirname, Myzdata data, Myznode node)
+int readDirectory(char* dirname, Myzdata data, Myznode node, char compress)
 {
 	int nested;
 	DIR* directory;
@@ -106,7 +106,7 @@ int readDirectory(char* dirname, Myzdata data, Myznode node)
 		if(S_ISDIR(fs.st_mode))
 			nested = 1;
 
-		myznode_insert(data, entries->d_name, fs, nested);
+		myznode_insert(data, entries->d_name, fs, nested, compress);
 		if(node != NULL)
 		{
 			myznode_addEntry(node, data->curelements -1);
@@ -115,7 +115,34 @@ int readDirectory(char* dirname, Myzdata data, Myznode node)
 		if(S_ISREG(fs.st_mode))
 		{
 			long int fsize;
-			char* buff = readData(fname, &fsize);
+			char tname[1000];
+			memset(tname, 0, 1000);
+			strcpy(tname, fname);
+			
+			if(compress)
+			{
+				int pid = fork();
+				if(!pid)
+				{
+					char* argv[] = {"gzip", fname, NULL};
+					execvp("gzip", argv);
+				}
+				wait(NULL);
+				strcat(tname, ".gz");
+			}
+			
+			char* buff = readData(tname, &fsize);
+
+			if(compress)
+			{
+				int pid = fork();
+				if(!pid)
+				{
+					char* argv[] = {"gzip", "-d", tname, NULL};
+					execvp("gzip", argv);
+				}
+				wait(NULL);
+			}
 
 			Myznode nd = data->array[data->curelements - 1];
 			nd->fsize = fsize;
@@ -132,7 +159,7 @@ int readDirectory(char* dirname, Myzdata data, Myznode node)
 			strcat(dirpath, entries->d_name);
 		
 
-			readDirectory(dirpath, data, data->array[data->curelements -1]);
+			readDirectory(dirpath, data, data->array[data->curelements -1], compress);
 
 		}
 	}
@@ -142,18 +169,10 @@ int readDirectory(char* dirname, Myzdata data, Myznode node)
 	return 0;
 }
 
-void compressAndInsert(char* dirname, Myzdata data, Myznode node)
+void compressAndInsert(char* dirname, Myzdata data)
 {
-	int pid = fork();
-	if(pid == 0)
-	{
-		char* argv[] = {"gzip" ,"-r", dirname, NULL};
-		execvp("gzip", argv);
-	}
-	wait(NULL);
 
-	readDirectory(dirname, data, node);
-
+	readDirectory(dirname, data, NULL, 1);
 }
 
 
@@ -163,7 +182,7 @@ int main()
 	int entries = 0;
 	countFiles("something3", &entries);
 	Myzdata data = myz_init(entries);
-	compressAndInsert("something3", data, NULL);
+	compressAndInsert("something3", data);
 	myz_print(data);
 
 
