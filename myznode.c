@@ -7,6 +7,7 @@
 #include "vector.h"
 #include <unistd.h>
 #include <fcntl.h>
+#include <wait.h>
 
 int isDirectory(struct stat st)
 {
@@ -17,6 +18,7 @@ struct myznode{
 	char fname[1000];
 	struct stat info; 
 	int nested;
+	int compressed;
 	
 	long int fsize;
 	char* filedata;
@@ -79,10 +81,11 @@ void myznode_addEntry(Myznode node, int index)
 }
 
 
-void myznode_insert(Myzdata data, char* fname, struct stat info, int nested)
+void myznode_insert(Myzdata data, char* fname, struct stat info, int nested, int compressed)
 {
 	
 	Myznode node = myznode_init(fname, info, nested);
+	node->compressed = compressed;
 	data->array[data->curelements] = node;
 	data->curelements++;
 	if(data->curelements == data->capacity)
@@ -181,9 +184,27 @@ static void write_rec(Myzdata data, Myznode node, int* visited, char* filepath)
 			strcat(npath, "/");
 			strcat(npath, nd->fname);
 			
-			int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(nd));
-			write(fd, nd->filedata, nd->fsize);
-			close(fd);
+			if(!nd->compressed)
+			{
+				int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(nd));
+				write(fd, nd->filedata, nd->fsize);
+				close(fd);
+			}
+     			else if(nd->compressed)
+			{
+				strcat(npath, ".gz");
+				int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(nd));
+				write(fd, nd->filedata, nd->fsize);
+				close(fd);
+				int pid = fork();
+				if(!pid)
+				{
+					char* argv[] = {"gzip", "-d",  npath, NULL};
+					execvp("gzip", argv);
+				}
+				wait(NULL);
+			}
+     			
 		}
 	}
 
@@ -222,9 +243,28 @@ void writeData(Myzdata data)
 			strcpy(npath, filepath);
 			strcat(npath, "/");
 			strcat(npath, nd->fname);
-			int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(nd));
-			write(fd, nd->filedata, nd->fsize);
-			close(fd);
+			if(!nd->compressed)
+			{
+				int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(nd));
+				write(fd, nd->filedata, nd->fsize);
+				close(fd);
+			}
+     			else if(nd->compressed)
+			{
+				strcat(npath, ".gz");
+				int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(nd));
+				write(fd, nd->filedata, nd->fsize);
+				close(fd);
+				int pid = fork();
+				if(!pid)
+				{
+					char* argv[] = {"gzip", "-d",  npath, NULL};
+					execvp("gzip", argv);
+				}
+				wait(NULL);
+			}
+     			
+
 		}
 		
 	}

@@ -12,6 +12,7 @@ struct myznode{
 	char fname[1000];
 	struct stat info; 
 	int nested;
+	int compressed;
 
 
 	long int fsize;
@@ -34,7 +35,7 @@ typedef struct myzdata myzdata;
 typedef myzdata* Myzdata;
 
 
-void myznode_insert(Myzdata data, char* fname, struct stat info, int nested);
+void myznode_insert(Myzdata data, char* fname, struct stat info, int nested, int compressed);
 
 Myzdata myz_init(int capacity);
 
