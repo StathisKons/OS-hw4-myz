@@ -4,6 +4,28 @@
 #include <dirent.h>
 #include <string.h>
 #include "myznode.h"
+#include <fcntl.h>
+
+char* readData(char* filepath, long int* size)
+{
+	int fd = open(filepath, O_RDONLY);
+	if(fd == -1)
+	{
+		printf("Opening was unsuccesful\n");
+		return NULL;
+	}
+	long int sz =  lseek(fd, 0, SEEK_END);
+	char* buffer = malloc(sizeof(char)*sz);
+	
+	lseek(fd, 0, SEEK_SET);
+
+	read(fd, buffer, sz);
+
+	*size = sz;
+	close(fd);
+	return buffer;
+}
+
 
 
 // Function for reading a directory's subdirectories and files recursively
@@ -17,6 +39,7 @@ static int countFiles(char* dirname, int* entriesn)
 	directory = opendir(dirname);
 	if(!directory)
 	{
+		printf("HI2\n");
 		perror("Error opening directory\n");
 		return 1;
 	}
@@ -45,6 +68,8 @@ static int countFiles(char* dirname, int* entriesn)
 	return 0;
 }
 
+
+
 // Function for reading a directory's subdirectories and files recursively
 int readDirectory(char* dirname, Myzdata data, Myznode node)
 {
@@ -62,10 +87,22 @@ int readDirectory(char* dirname, Myzdata data, Myznode node)
 	}
 
 	while((entries=readdir(directory)))
-	{
+	{		
+		if(entries == NULL) continue;
+		char fname[1000];
+		memset(fname, 0, 1000);
+		strcpy(fname, dirname);
+		strcat(fname, "/");
+		strcat(fname, entries->d_name);
+	
+
+
 		nested = 0;
 		files++;
-		int r = stat(entries->d_name, &fs);
+		int r = lstat(fname, &fs);
+		if(r == -1)
+			continue;
+		printf("%d\n", r);
 		if(entries->d_type == 4)
 			nested = 1;
 
@@ -75,7 +112,7 @@ int readDirectory(char* dirname, Myzdata data, Myznode node)
 			myznode_addEntry(node, data->curelements -1);
 		}
 		
-		if(entries->d_type == 4 && strcmp(entries->d_name, "..") && strcmp(entries->d_name, "."))
+		if( S_ISDIR(fs.st_mode) && strcmp(entries->d_name, "..") && strcmp(entries->d_name, "."))
 		{
 			char dirpath[1000];
 			memset(dirpath, 0, 1000);
@@ -97,9 +134,6 @@ int readDirectory(char* dirname, Myzdata data, Myznode node)
 
 
 
-
-
-
 int main()
 {
 	int entries = 0;
@@ -109,6 +143,11 @@ int main()
 	myz_print(data);
 
 	Myz_destroy(data);
+
+
+
+
+
 	return 0;
 }
 
