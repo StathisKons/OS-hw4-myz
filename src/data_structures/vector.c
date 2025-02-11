@@ -45,7 +45,7 @@ void vector_insert_last(Vector vec, Pointer value){
 }
 
 void vector_remove_last(Vector vec){
-    assert(vec != NULL);
+    assert(vec != NULL && vec->size > 0);
 
     if(vec->destroy_value != NULL){
         vec->destroy_value(vec->array[vec->size - 1].value);
