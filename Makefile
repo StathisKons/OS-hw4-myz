@@ -4,7 +4,7 @@ SRC_DIRS := ./src
 COMMON_SRCS := $(shell find $(SRC_DIRS) -name '*.c')
 COMMON_OBJS := $(COMMON_SRCS:%.c=$(BUILD_DIR)/%.o)
 
-INC_DIRS := ./include # ./include/data_structures ./include/utils ./include/programs
+INC_DIRS := $(shell find ./include -type d)
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 CC := gcc
