@@ -9,6 +9,7 @@
         "sys_utils.h": "c",
         "random": "c",
         "myz.h": "c",
-        "fcntl.h": "c"
+        "fcntl.h": "c",
+        "common_types.h": "c"
     }
 }
