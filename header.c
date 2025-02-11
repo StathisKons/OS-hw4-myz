@@ -8,28 +8,28 @@ static void write_magic_number(int fd);
 static void write_file_size(int fd, int64_t new_size);
 static void write_metadata_offset(int fd, off_t new_offset);
 
-off_t get_magic_number_offset(void)
+off_t header_get_magic_number_offset(void)
 {
     return 0;
 }
 
-off_t get_metadata_offset_offset(void)
+off_t header_get_metadata_offset_offset(void)
 {
-    return get_magic_number_offset() + MAGIC_NUMBER_SIZE;
+    return header_get_magic_number_offset() + MAGIC_NUMBER_SIZE;
 }
 
-off_t get_file_size_offset(void)
+off_t header_get_file_size_offset(void)
 {
-    return get_metadata_offset_offset() + sizeof(off_t);  // sizeof metadata_offset
+    return header_get_metadata_offset_offset() + sizeof(off_t);  // sizeof metadata_offset
 }
 
-off_t get_data_offset(void)
+off_t header_get_data_offset(void)
 {
-    return get_file_size_offset() + sizeof(int64_t);
+    return header_get_file_size_offset() + sizeof(int64_t);
 }
 
 
-Header get_header(int fd)
+Header header_get(int fd)
 {
     char buffer[64];
 
@@ -53,7 +53,7 @@ Header get_header(int fd)
     return header;
 }
 
-void write_header(Header header, int fd)
+void header_write(Header header, int fd)
 {
     write_magic_number(fd);
     write_file_size(fd, header->file_size);

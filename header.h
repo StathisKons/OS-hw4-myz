@@ -16,16 +16,16 @@ struct header {
 typedef struct header* Header;
 
 
-off_t get_magic_number_offset(void);
+off_t header_get_magic_number_offset(void);
 
-off_t get_metadata_offset_offset(void);
+off_t header_get_metadata_offset_offset(void);
 
-off_t get_file_size_offset(void);
+off_t header_get_file_size_offset(void);
 
-off_t get_data_offset(void);
+off_t header_get_data_offset(void);
 
-Header get_header(int fd);
+Header header_get(int fd);
 
-void write_header(Header header, int fd);
+void header_write(Header header, int fd);
 
 #endif // HEADER_H
