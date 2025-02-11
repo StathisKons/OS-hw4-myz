@@ -2,12 +2,13 @@
 #define HEADER_H
 
 #define MAGIC_NUMBER "MYZ"
+#define MAGIC_NUMBER_SIZE (sizeof(MAGIC_NUMBER))
 
 #include <stdint.h>
 #include <sys/types.h>
 
 struct header {
-    char magic_number[sizeof(MAGIC_NUMBER)];
+    char magic_number[MAGIC_NUMBER_SIZE];
     off_t metadata_offset;
     int64_t file_size;
 };
@@ -26,5 +27,7 @@ off_t get_data_offset(void);
 void set_file_size(Header header, int fd, int64_t new_size);
 
 Header get_header(int fd);
+
+void write_header(Header header, int fd);
 
 #endif // HEADER_H

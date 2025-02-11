@@ -4,6 +4,10 @@
 #include "sys_utils.h"
 #include <string.h>
 
+static void write_magic_number(int fd);
+static void write_file_size(int fd, int64_t new_size);
+static void write_metadata_offset(int fd, off_t new_offset);
+
 off_t get_magic_number_offset(void)
 {
     return 0;
@@ -11,7 +15,7 @@ off_t get_magic_number_offset(void)
 
 off_t get_metadata_offset_offset(void)
 {
-    return get_magic_number_offset() + sizeof(MAGIC_NUMBER);
+    return get_magic_number_offset() + MAGIC_NUMBER_SIZE;
 }
 
 off_t get_file_size_offset(void)
@@ -28,21 +32,14 @@ off_t get_data_offset(void)
 void set_file_size(Header header, int fd, int64_t new_size)
 {
     header->file_size = new_size;
-    safe_sys(lseek(fd, get_file_size_offset(), SEEK_SET));
-    char buffer[sizeof(new_size)];
-    memcpy(buffer, &new_size, sizeof(new_size));
-    safe_sys(write(fd, buffer, sizeof(buffer)));
+    write_file_size(fd, new_size);
 }
 
 void set_metadata_offset(Header header, int fd, off_t new_offset)
 {
     header->metadata_offset = new_offset;
-    safe_sys(lseek(fd, get_metadata_offset_offset(), SEEK_SET));
-    char buffer[sizeof(new_offset)];
-    memcpy(buffer, &new_offset, sizeof(new_offset));
-    safe_sys(write(fd, buffer, sizeof(buffer)));
+    write_metadata_offset(fd, new_offset);
 }
-
 
 
 Header get_header(int fd)
@@ -67,4 +64,35 @@ Header get_header(int fd)
     memcpy(&(header->file_size), buffer, sizeof(int64_t));
 
     return header;
+}
+
+void write_header(Header header, int fd)
+{
+    write_magic_number(fd);
+    write_file_size(fd, header->file_size);
+    write_metadata_offset(fd, header->metadata_offset);
+}
+
+static void write_magic_number(int fd)
+{
+    safe_sys(lseek(fd, get_magic_number_offset(), SEEK_SET));
+    char buffer[MAGIC_NUMBER_SIZE];
+    memcpy(buffer, MAGIC_NUMBER, MAGIC_NUMBER_SIZE);
+    safe_sys(write(fd, buffer, sizeof(buffer)));
+}
+
+static void write_file_size(int fd, int64_t new_size)
+{
+    safe_sys(lseek(fd, get_file_size_offset(), SEEK_SET));
+    char buffer[sizeof(new_size)];
+    memcpy(buffer, &new_size, sizeof(new_size));
+    safe_sys(write(fd, buffer, sizeof(buffer)));
+}
+
+static void write_metadata_offset(int fd, off_t new_offset)
+{
+    safe_sys(lseek(fd, get_metadata_offset_offset(), SEEK_SET));
+    char buffer[sizeof(new_offset)];
+    memcpy(buffer, &new_offset, sizeof(new_offset));
+    safe_sys(write(fd, buffer, sizeof(buffer)));
 }
