@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "vector.h": "c",
+        "myznode.h": "c",
+        "stdio.h": "c",
+        "unistd.h": "c",
+        "header.h": "c",
+        "assert.h": "c",
+        "sys_utils.h": "c",
+        "random": "c",
+        "myz.h": "c",
+        "fcntl.h": "c"
+    }
+}

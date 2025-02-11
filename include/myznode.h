@@ -7,6 +7,8 @@
 #include <time.h>
 #include <stdio.h>
 #include "vector.h"
+#include <unistd.h>
+#include <sys/types.h>
 
 struct myznode {
 	char fname[1000];
