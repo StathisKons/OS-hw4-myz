@@ -29,19 +29,6 @@ off_t get_data_offset(void)
 }
 
 
-void set_file_size(Header header, int fd, int64_t new_size)
-{
-    header->file_size = new_size;
-    write_file_size(fd, new_size);
-}
-
-void set_metadata_offset(Header header, int fd, off_t new_offset)
-{
-    header->metadata_offset = new_offset;
-    write_metadata_offset(fd, new_offset);
-}
-
-
 Header get_header(int fd)
 {
     char buffer[64];

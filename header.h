@@ -24,8 +24,6 @@ off_t get_file_size_offset(void);
 
 off_t get_data_offset(void);
 
-void set_file_size(Header header, int fd, int64_t new_size);
-
 Header get_header(int fd);
 
 void write_header(Header header, int fd);
