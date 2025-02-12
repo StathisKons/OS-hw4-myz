@@ -87,9 +87,8 @@ int readDirectory(char* dirname, Myzdata data, Myznode node, char compress)
 		return 1;
 	}
 
-	while((entries=readdir(directory)))
+	while((entries=readdir(directory)) != NULL)
 	{		
-		if(entries == NULL) continue;
 		char fname[1000];
 		memset(fname, 0, 1000);
 		strcpy(fname, dirname);
@@ -186,16 +185,9 @@ int main()
 	myz_print(data);
 
 
-
 	writeData(data);
 	Myz_destroy(data);
 
 
-
-
-
 	return 0;
 }
-
-
-

@@ -10,6 +10,8 @@
         "random": "c",
         "myz.h": "c",
         "fcntl.h": "c",
-        "common_types.h": "c"
+        "common_types.h": "c",
+        "stat.h": "c",
+        "types.h": "c"
     }
 }

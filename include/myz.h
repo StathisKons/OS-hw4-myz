@@ -9,7 +9,7 @@ typedef struct {
     int fd;
     Header header;
     // files
-    Myzdata data;
+    Metadata data;
 } Myz;
 
 Myz myz_read(const char *pathname);
