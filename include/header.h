@@ -1,11 +1,18 @@
 #ifndef HEADER_H
 #define HEADER_H
 
+#include <stdint.h>
+#include <sys/types.h>
+
+
 #define MAGIC_NUMBER "MYZ"
 #define MAGIC_NUMBER_SIZE (sizeof(MAGIC_NUMBER))
 
-#include <stdint.h>
-#include <sys/types.h>
+#define HEADER_MAGIC_NUMBER_OFFSET      0
+#define HEADER_METADATA_OFFSET_OFFSET   (HEADER_MAGIC_NUMBER_OFFSET + MAGIC_NUMBER_SIZE)
+#define HEADER_FILE_SIZE_OFFSET         (HEADER_METADATA_OFFSET_OFFSET + sizeof(off_t))     /*sizeof(metadata_offset)*/
+#define HEADER_DATA_OFFSET              (HEADER_FILE_SIZE_OFFSET + sizeof(int64_t))         /*sizeof(file_size)*/
+
 
 struct header {
     char magic_number[MAGIC_NUMBER_SIZE];

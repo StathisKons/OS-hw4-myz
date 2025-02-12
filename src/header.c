@@ -10,22 +10,22 @@ static void write_metadata_offset(int fd, off_t new_offset);
 
 off_t header_get_magic_number_offset(void)
 {
-    return 0;
+    return HEADER_MAGIC_NUMBER_OFFSET;
 }
 
 off_t header_get_metadata_offset_offset(void)
 {
-    return header_get_magic_number_offset() + MAGIC_NUMBER_SIZE;
+    return HEADER_METADATA_OFFSET_OFFSET;
 }
 
 off_t header_get_file_size_offset(void)
 {
-    return header_get_metadata_offset_offset() + sizeof(off_t);  // sizeof metadata_offset
+    return HEADER_FILE_SIZE_OFFSET;
 }
 
 off_t header_get_data_offset(void)
 {
-    return header_get_file_size_offset() + sizeof(int64_t);
+    return HEADER_DATA_OFFSET;
 }
 
 
