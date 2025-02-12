@@ -1,8 +1,8 @@
 #include "metadata.h"
 #include "sys_utils.h"
+#include "vector.h"
 #include <sys/stat.h>
 #include <assert.h>
-
 #include <dirent.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,17 +14,36 @@
 
 
 static void myznode_destroy(Pointer myz_node);
-
+static bool is_compressed(char* path);
 char* compress_and_read(const char* path, int* fsize);
+static void read_data(char* path, Metadata metadata, bool compressed, int dir_index);
 
 // Retrieve file permissions in Unix-like format from a Myznode using the stat structure
-static mode_t getPermissions(MyzNode node)
-{
-	return node->info.st_mode & 0777;
+// static mode_t getPermissions(MyzNode node)
+// {
+// 	return node->info.st_mode & 0777;
+// }
+
+Entry entry_create(char* name, int myznode_index){
+	Entry entry = safe_malloc(sizeof(*entry));
+	entry->name = name;
+	entry->myznode_index = myznode_index;	
+
+	return entry;
 }
 
+void entries_insert(MyzNode node, char* name, int myznode_index)
+{
+	assert(name != NULL && myznode_index >= 0);
 
+	Entry entry = entry_create(name, myznode_index);
 
+	if(node->entries == NULL){
+		node->entries = vector_create(0, free);
+	}
+
+	vector_insert_last(node->entries, entry);
+}
 
 
 
@@ -56,6 +75,42 @@ static FileType find_type(mode_t mode)
 		fprintf(stderr, "unsupported file type\n");
 		exit(EXIT_FAILURE);
 	}
+}
+
+void read_Data(Metadata metadata, char* path, bool compressed)
+{
+	struct stat info;
+	char* tpath = strdup(path);
+	char relpath[1024] = {0};
+
+	char* token;
+	char* delims = "/";
+	token = strtok(tpath, delims);
+	MyzNode prev = NULL;
+	MyzNode cur;
+	bool fl = true;
+	do {
+		strcat(relpath, token);
+		strcat(relpath, "/");
+		safe_sys(lstat(relpath, &info));
+		if(!S_ISDIR(info.st_mode))
+		{
+			break;
+		}
+		metadata_insert(metadata, token, info, false, 0, NULL);
+		if(fl)
+		{
+			cur = vector_get_at(metadata->nodes, 0); 
+		}
+
+		if(prev != NULL)
+		{
+			entries_insert(prev, token, vector_size(metadata->nodes) - 1);
+		}
+		prev = cur;
+	} while((token = strtok(NULL, delims)));
+
+	read_data(path, metadata, compressed, vector_size(metadata->nodes) - 1);
 }
 
 void metadata_insert(Metadata metadata, char* name, struct stat info, bool compressed, long int file_size, char* file_data)
@@ -103,54 +158,111 @@ char* read_file(char* path, int* fsize){
 
 	close(fd);
 	return fdata;
-	
 }
 
  
-void read_data(char* path, Metadata metadata, bool compressed, int dir_index)
+static void read_data(char* path, Metadata metadata, bool compressed, int dir_index)
 {
-	bool nested;
-	DIR* directory;
-	struct dirent *entries;
-	struct stat info;
-
-
-	directory = opendir(path);
-	if(!directory)
+	DIR* directory = opendir(path);
+	if(directory == NULL)
 	{
 		perror("Error opening directory\n");
 		exit(EXIT_FAILURE);
 	}
 	
+	struct dirent *entries;
 	while((entries = readdir(directory)) != NULL)
 	{
-		nested = 0;
-		char fname[1000];
-		memset(fname, 0, 1000);
-		sprintf(fname, "%s/%s", path, entries->d_name);
+		if(strcmp(entries->d_name, ".") == 0 || strcmp(entries->d_name, "..") == 0) continue;
+		char fpath[1024] = {0};
+		sprintf(fpath, "%s/%s", path, entries->d_name);
+		
+		struct stat info;
+		safe_sys(lstat(fpath, &info));
 
-		safe_sys(lstat(fname, &info));
-		if(S_ISDIR(info.st_mode))
-			nested = 1;
-
-
-		char* fdata;
-		int fsize;
+		char* fdata = NULL;
+		int fsize = 0;
+		char fname[259] = {0};
+		strcpy(fname, entries->d_name);
+		
 		if(S_ISREG(info.st_mode))
 		{
-			if(compressed)
+			if(compressed && is_compressed(fpath))
 			{
-				compress_and_read(fname, &fsize);
+				fdata = compress_and_read(fpath, &fsize);
+				strcat(fname, ".gz");
 			}
-	lse
+			else
 			{
-				read_file(fname, metad)
+				fdata = read_file(fpath, &fsize);
 			}
 		}
+		metadata_insert(metadata, fname, info, compressed, fsize, fdata);
 
+		if(dir_index != -1)
+		{
+			entries_insert(vector_get_at(metadata->nodes, dir_index), entries->d_name, vector_size(metadata->nodes) - 1);
+		}
+
+		if(S_ISDIR(info.st_mode) && strcmp(entries->d_name, ".") && strcmp(entries->d_name, ".."))
+		{
+			read_data(fpath, metadata, compressed, vector_size(metadata->nodes) - 1);
+		}
 
 	}
 
+	closedir(directory);
+}
+
+static void print_directory(Metadata metadata, MyzNode node, char* path, bool* visited)
+{
+	if(node->entries == NULL)
+	{
+		printf("%s/\n", path);
+		return;
+	}
+	for(int i = 0; i < vector_size(node->entries); i++)
+	{
+		Entry entry = vector_get_at(node->entries, i);
+		visited[entry->myznode_index] = 1;
+
+		MyzNode tnode = vector_get_at(metadata->nodes, entry->myznode_index);
+
+		if(S_ISDIR(tnode->info.st_mode))
+		{
+			char npath[1024] = {0};
+			sprintf(npath, "%s/%s", path, tnode->name);
+			print_directory(metadata, tnode, npath, visited);
+		}
+		else if(S_ISREG(tnode->info.st_mode))
+		{
+			printf("%s/%s\n", path, tnode->name);
+		}
+	} 
+}
+
+void print_data(Metadata metadata)
+{
+	bool* visited = calloc(vector_size(metadata->nodes), sizeof(bool));
+
+	for(int i = 0; i < vector_size(metadata->nodes); i++)
+	{
+		MyzNode node = vector_get_at(metadata->nodes, i);
+		if(visited[i]) continue;
+		visited[i] = true;
+		if(S_ISDIR(node->info.st_mode))
+		{
+			char path[1000] = {0};
+			strcpy(path, node->name);
+			print_directory(metadata, node, path, visited);
+		}
+		else if(S_ISREG(node->info.st_mode))
+		{
+			printf("%s\n", node->name);
+		}
+	}
+
+	free(visited);
 }
 
 static bool is_compressed(char* path)
@@ -199,7 +311,7 @@ void decompress(char* path)
 char* compress_and_read(const char* path, int* fsize)
 {
 	char tname[1024];
-	strcpy(tname, "path");
+	strcpy(tname, path);
 
 	compress(tname);
 	strcat(tname, ".gz");
@@ -214,147 +326,3 @@ char* compress_and_read(const char* path, int* fsize)
 
 	return fdata;
 }
-
-
-
-
-
-
-
-
-// static void write_rec(Myzdata data, Myznode node, int* visited, char* filepath)
-// {
-// 	Myznode nd; 
-// 	for(int i = 0; i < node->entries->curelements; i++)
-// 	/ 		int ind = node->entries->entries[i];
-// 		nd = data->array[ind];
-
-// 		if(visited[ind] == 1) continue;
-// 		else visited[ind] = 1;
-
-// 		if(S_ISDIR(nd->info.st_mode) && strcmp(nd->fname, "..") && strcmp(nd->fname, "."))
-// 		{
-// 			char npath[300];
-// 			memset(npath, 0, 300);
-// 			strcpy(npath, filepath);
-// 			strcat(npath, "/");
-// 			strcat(npath, nd->fname);
-			
-// 			mkdir(npath, getPermissions(nd));
-// 			write_rec(data, nd, visited, npath);
-// 		}
-// 		else if(S_ISREG(nd->info.st_mode))
-// 		{
-// 			char npath[300];
-// 			memset(npath, 0, 300);
-// 			strcpy(npath, filepath);
-// 			strcat(npath, "/");
-// 			strcat(npath, nd->fname);
-			
-// 			if(!nd->compressed)
-// 			{
-// 				int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(nd));
-// 				write(fd, nd->filedata, nd->fsize);
-// 				close(fd);
-// 			}
-//      			else if(nd->compressed)
-// 			{
-// 				strcat(npath, ".gz");
-// 				int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(nd));
-// 				write(fd, nd->filedata, nd->fsize);
-// 				close(fd);
-// 				int pid = fork();
-// 				if(!pid)
-// 				{
-// 					char* argv[] = {"gzip", "-d",  npath, NULL};
-// 					execvp("gzip", argv);
-// 				}
-// 				wait(NULL);
-// 			}
-     			
-// 		}
-// 	}
-
-// }
-
-
-// void writeData(Myzdata data)
-// {	
-// 	Myznode node;
-// 	int* visited = calloc(data->curelements, sizeof(int));
-// 	char filepath[] = "something2";
-// 	mkdir(filepath, 0777);
-// 	Myznode nd;
-
-// 	for(int i = 0; i < data->curelements; i++)
-// 	{
-// 		nd = data->array[i];
-// 		if(visited[i] == 1) continue;
-// 		else visited[i] = 1;
-		
-
-// 		if(S_ISDIR(nd->info.st_mode) && strcmp(nd->fname, "..") && strcmp(nd->fname, "."))
-// 		{
-//     			char npath[300];
-// 			memset(npath, 0, 300);
-// 			strcpy(npath, filepath);
-// 			strcat(npath, "/");
-// 			strcat(npath, nd->fname);
-// 			mkdir(npath, getPermissions(nd));
-// 			write_rec(data, nd, visited, npath);
-// 		}
-//      		else if(S_ISREG(nd->info.st_mode))
-//      		{
-//     			char npath[300];
-// 			memset(npath, 0, 300);
-// 			strcpy(npath, filepath);
-// 			strcat(npath, "/");
-// 			strcat(npath, nd->fname);
-// 			if(!nd->compressed)
-// 			{
-// 				int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(nd));
-// 				write(fd, nd->filedata, nd->fsize);
-// 				close(fd);
-// 			}
-//      			else if(nd->compressed)
-// 			{
-// 				strcat(npath, ".gz");
-// 				int fd = open(npath, O_CREAT | O_WRONLY | O_TRUNC, getPermissions(nd));
-// 				write(fd, nd->filedata, nd->fsize);
-// 				close(fd);
-// 				int pid = fork();
-// 				if(!pid)
-// 				{
-// 					char* argv[] = {"gzip", "-d",  npath, NULL};
-// 					execvp("gzip", argv);
-// 				}
-// 				wait(NULL);
-// 			}
-     			
-
-// 		}
-		
-// 	}
-
-// 	free(visited);
-
-// }
-
-// void getAccessTime(Myznode node, char* timestamp)
-// {
-// 	strcpy(timestamp, ctime(&node->info.st_atime));
-// }
-
-// void getModTime(Myznode node, char* timestamp)
-// {
-// 	strcpy(timestamp, ctime(&node->info.st_mtime));
-// }
-
-// void getChangeTime(Myznode node, char* timestamp)
-// {
-// 	strcpy(timestamp, ctime(&node->info.st_ctime));
-// }
-
-
-
-

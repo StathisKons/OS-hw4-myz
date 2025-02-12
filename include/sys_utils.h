@@ -34,7 +34,8 @@ do{                                                           \
     }                                                         \
 } while(0);                                                   \
 
-#define safe_fork(PID) (safe_sys_assign(PID, fork())) 
+
+// #define safe_fork(PID) (safe_sys_assign(PID, fork())) 
 
 void *safe_malloc(size_t size);
 

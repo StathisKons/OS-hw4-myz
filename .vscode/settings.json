@@ -12,6 +12,8 @@
         "fcntl.h": "c",
         "common_types.h": "c",
         "stat.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "metadata.h": "c",
+        "stdbool.h": "c"
     }
 }

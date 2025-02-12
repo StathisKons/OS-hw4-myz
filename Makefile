@@ -11,21 +11,19 @@ CC := gcc
 CFLAGS := -g3 -Wall -Wextra -pedantic # -Werror -O3
 LDFLAGS := -lm -pthread -lrt
 
-PROGRAMS := initializer monitor visitor receptionist close_bar
+PROGRAM := myz
 
 
-SHMID = shm_for_nemea_sdi2300099
-REST_TIME = 2
-ORDER_TIME = 3
-ARGS := -s $(SHMID) -c 20 -o $(ORDER_TIME) -r $(REST_TIME)
+# ARGS := -s $(SHMID) -c 20 -o $(ORDER_TIME) -r $(REST_TIME)
+ARGS := 
 
 
 # Default target
 .PHONY: all
-all: $(PROGRAMS)
+all: $(PROGRAM)
 
 # Program-specific source and object files
-initializer: $(COMMON_OBJS) $(BUILD_DIR)/programs/initializer.o
+myz: $(COMMON_OBJS) $(BUILD_DIR)/programs/myz.o
 	$(CC) $^ -o $@ $(LDFLAGS) 
 
 
@@ -43,16 +41,16 @@ $(BUILD_DIR)/%.o: %.c
 .PHONY: run
 	# @echo "Specify a program to run: make run PROGRAM=builder|lexan|splitter"
 	# @./$(BUILD_DIR)/$(PROGRAM) $(ARGS)
-run: $(PROGRAMS)
-	./initializer $(ARGS)
+run: $(PROGRAM)
+	./$(PROGRAM) $(ARGS)
 
-.PHONY: run_monitor
-run_monitor: $(PROGRAMS)
-	watch -d -n 0.5 --color ./monitor -s $(SHMID)
+# .PHONY: run_monitor
+# run_monitor: $(PROGRAMS)
+# 	watch -d -n 0.5 --color ./monitor -s $(SHMID)
 
 .PHONY: val
-val: $(PROGRAMS)
-	valgrind --trace-children=yes --leak-check=full ./initializer $(ARGS)
+val: $(PROGRAM)
+	valgrind --trace-children=yes --leak-check=full ./$(PROGRAM) $(ARGS)
 
 # Clean
 .PHONY: clean

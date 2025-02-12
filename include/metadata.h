@@ -36,7 +36,7 @@ typedef struct myznode* MyzNode;
 typedef struct {
 	char* name;
 	int myznode_index;
-} Entries;
+} *Entry;
 
 
 typedef struct {
@@ -56,5 +56,8 @@ void metadata_insert(Metadata metadata, char* name, struct stat info, bool compr
 // void myznode_destroy();
 
 
+void print_data(Metadata metadata);
 
+
+void read_Data(Metadata metadata, char* path, bool compressed);
 #endif // METADATA_H 

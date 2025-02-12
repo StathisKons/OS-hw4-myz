@@ -2,8 +2,8 @@
 #include <assert.h>
 #include <stdlib.h>
 
-void *safe_malloc(size_t size){
-    assert(size > 0);
+void* safe_malloc(size_t size){
+    // assert(size > 0);
     void *mem = malloc(size);
     if(mem == NULL){
         perror("malloc");
@@ -12,7 +12,7 @@ void *safe_malloc(size_t size){
     return mem;
 }
 
-void *safe_realloc(void *ptr, size_t size){
+void* safe_realloc(void *ptr, size_t size){
     assert(size > 0);
     void *mem = realloc(ptr, size);
     if(mem == NULL){
