@@ -42,5 +42,11 @@ ssize_t guaranteed_read(int fd, void *buffer, size_t bytes_to_read_){
         }
         bytes_read += r;
     }
+    if(bytes_read != bytes_to_read){
+        char buffer[256];
+        sprintf(buffer, "Read failed, read %ld bytes instead of %ld", bytes_read, bytes_to_read);
+        perror(buffer);
+        exit(EXIT_FAILURE);
+    }
     return bytes_read;
 }

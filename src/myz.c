@@ -19,6 +19,10 @@ void write_to_file_create(Myz myz, const char* file_name) {
         MyzNode node = vector_get_at(nodes, i);
         if(node->file_data != NULL)
         {
+                        if(!S_ISREG(node->info.st_mode)){
+                            fprintf(stderr, "WTFFFF???!!?!?!??\n\n");
+                            exit(EXIT_FAILURE);
+                        }
             safe_sys(write(fd, node->file_data, node->file_size));
             node->data_offset = lseek(fd, 0, SEEK_CUR);
         }
@@ -37,7 +41,6 @@ void write_to_file_create(Myz myz, const char* file_name) {
     // Update header with final offsets and sizes
     myz->header->metadata_offset = metadata_offset;
     myz->header->file_size = file_size;
-    safe_sys(lseek(fd, 0, SEEK_SET));
     header_write(myz->header, fd);
 
     safe_sys(close(fd));
@@ -72,11 +75,13 @@ Myz read_from_file(const char* path)
     for(int i = 0; i < vector_size(myz->metadata->nodes); i++)
     {
         MyzNode node = vector_get_at(myz->metadata->nodes, i);
-
-        lseek(fd, node->data_offset, SEEK_SET);
+        
         if(S_ISREG(node->info.st_mode))
+        {
+            safe_sys(lseek(fd, node->data_offset, SEEK_SET));
             node->file_data = safe_malloc(node->file_size * sizeof(*node->file_data));
-        guaranteed_read(fd, node->file_data, node->file_size * sizeof(*node->file_data));
+            guaranteed_read(fd, node->file_data, node->file_size * sizeof(*node->file_data));
+        }
     }
 
 

@@ -419,7 +419,6 @@ void write_Data(Metadata metadata)
 
 	free(visited);
 
-
 }
 
 static void write_entries(Vector entries, int fd){
@@ -454,8 +453,6 @@ void metadata_write_node(MyzNode node, int fd){
 
 static Vector read_entries(int fd)
 {
-	Vector entries;
-
 	int size;
 	guaranteed_read(fd, &size, sizeof(size));
 	printf("ENTRIES: %d\n", size);
@@ -463,7 +460,7 @@ static Vector read_entries(int fd)
 	if(size == 0)
 		return NULL;
 
-	entries = vector_create(size, free);
+	Vector entries = vector_create(size, free);
 	for(int i = 0; i < size; i++)
 	{
 		Entry entry = safe_malloc(sizeof(*entry));
