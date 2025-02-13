@@ -37,17 +37,17 @@ Header header_get(int fd)
 
     safe_sys(lseek(fd, 0, SEEK_SET));
 
-    safe_sys(read(fd, buffer, sizeof(MAGIC_NUMBER)));
+    guaranteed_read(fd, buffer, sizeof(MAGIC_NUMBER));
     if(strcmp(buffer, MAGIC_NUMBER) != 0)
     {
         perror("Magic number is not correct\n");
         exit(EXIT_FAILURE);
     }
     
-    safe_sys(read(fd, buffer, sizeof(off_t)));
+    guaranteed_read(fd, buffer, sizeof(off_t));
     memcpy(&(header->metadata_offset), buffer, sizeof(off_t));
 
-    safe_sys(read(fd, buffer, sizeof(int64_t)));
+    guaranteed_read(fd, buffer, sizeof(int64_t));
     memcpy(&(header->file_size), buffer, sizeof(int64_t));
 
     return header;

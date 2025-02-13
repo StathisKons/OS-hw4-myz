@@ -14,6 +14,7 @@
         "stat.h": "c",
         "types.h": "c",
         "metadata.h": "c",
-        "stdbool.h": "c"
+        "stdbool.h": "c",
+        "cerrno": "c"
     }
 }

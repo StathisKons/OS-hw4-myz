@@ -41,5 +41,6 @@ void *safe_malloc(size_t size);
 
 void *safe_realloc(void *ptr, size_t size);
 
+ssize_t guaranteed_read(int fd, void *buffer, size_t bytes_to_read_);
 
 #endif // SYS_UTILS_H

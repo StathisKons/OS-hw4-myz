@@ -7,17 +7,19 @@
 #include <stdbool.h>
 #include "vector.h"
 
+
 typedef enum {
 	REGULAR_FILE,
 	DIRECTORY,
 	SYMBOLIC_LINK
 } FileType;
 
+#define MAX_NAME 256
 
 struct myznode {
-	char name[256];
+	char name[MAX_NAME];
 	struct stat info; 
-	FileType type;
+	// FileType type;
 	bool compressed;
 
 	// file specific
@@ -50,6 +52,8 @@ Metadata metadata_create(void);
 
 void metadata_destroy(Metadata metadata);
 
+void metadata_insert_node(Metadata metadata, MyzNode node);
+
 void metadata_insert(Metadata metadata, char* name, struct stat info, bool compressed, long int file_size, char* file_data);
 // MyzNode myznode_create();
 
@@ -59,5 +63,12 @@ void metadata_insert(Metadata metadata, char* name, struct stat info, bool compr
 void print_data(Metadata metadata);
 
 
+void write_Data(Metadata metadata);
+
 void read_Data(Metadata metadata, char* path, bool compressed);
+    
+void metadata_write_node(MyzNode node, int fd);
+
+MyzNode metadata_read_node(int fd);
+
 #endif // METADATA_H 
