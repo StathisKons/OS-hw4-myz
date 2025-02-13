@@ -3,98 +3,248 @@
 #include "metadata.h"
 #include "sys_utils.h"
 #include <fcntl.h>
+#include <assert.h>
+
+static void write_stat(int fd, MyzNode node);
+
+// void read_metadata(Myz myz, int fd)
+// {
+// 	lseek(fd, myz->header->metadata_offset, SEEK_SET);
+
+// 	Metadata metadata = safe_malloc(sizeof(*metadata));
+//     metadata->nodes = vector_create(0, NULL);   // TODO: destroy function
+// 	MyzNode node = NULL;
+// 	while((node = metadata_read_node(fd)) != NULL)
+// 	{
+// 		vector_insert_last(metadata->nodes, node);
+// 	}
+
+// 	myz->metadata = metadata;
+// }
+
+// Myz read_from_file(const char* path)
+// {
+//     int fd;
+//     safe_sys_assign(fd, open(path, O_RDONLY));
+//     Myz myz = safe_malloc(sizeof(*myz));
+
+//     myz->header = header_get(fd);
+
+//     read_metadata(myz, fd);
+    
+//     for(int i = 0; i < vector_size(myz->metadata->nodes); i++)
+//     {
+//         MyzNode node = vector_get_at(myz->metadata->nodes, i);
+        
+//         if(S_ISREG(node->info.mode))
+//         {
+//             safe_sys(lseek(fd, node->data_offset, SEEK_SET));
+//             node->file_data = safe_malloc(node->file_size * sizeof(*node->file_data));
+//             guaranteed_read(fd, node->file_data, node->file_size * sizeof(*node->file_data));
+//         }
+//     }
 
 
-void write_to_file_create(Myz myz, const char* file_name) {
+//     return myz;
+// }
+
+static void write_name(int fd, const char* name)
+{
+    size_t name_length = strlen(name) + 1;    // +1 for \0
+    safe_sys(write(fd, &name_length, sizeof(name_length)));
+    safe_sys(write(fd, name, name_length));
+}
+
+
+static void write_entries(Vector entries, int fd)
+{
+    int size = vector_size(entries);
+    safe_sys(write(fd, &size, sizeof(size)));
+    for(int i = 0 ; i < size ; i++)
+    {
+        Entry entry = vector_get_at(entries, i);
+        write_name(fd, entry->name);
+        safe_sys(write(fd, &entry->myznode_index, sizeof(entry->myznode_index)));
+    }
+}
+
+static void write_metadata_node(MyzNode node, int fd)
+{
+    write_name(fd, node->name);
+    write_stat(fd, node);
+    safe_sys(write(fd, &node->compressed, sizeof(node->compressed)));
+    if(S_ISREG(node->info.mode))
+    {
+        safe_sys(write(fd, &node->data_offset, sizeof(node->data_offset)));
+        safe_sys(write(fd, &node->file_size, sizeof(node->file_size)));
+    }
+    if(S_ISDIR(node->info.mode))
+    {
+        write_entries(node->entries, fd);
+    }
+}
+
+
+void create_myz_file(Myz myz, const char* file_name)
+{
     int fd;
     safe_sys_assign(fd, open(file_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR));
 
-    header_write(myz->header, fd);
 
-    Vector nodes = myz->metadata->nodes;
+    header_write(myz->header, fd);
+    safe_sys(lseek(fd, header_get_data_offset(), SEEK_SET));        // for safety, remove
+
+    Metadata metadata = myz->metadata;
+    
+    Vector nodes = metadata->nodes;
+    int size = vector_size(nodes);
 
     // write data
-    int size = vector_size(nodes);
-    for(int i = 0 ; i < size ; i++){
+    for(int i = 0 ; i < size ; i++)
+    {
         MyzNode node = vector_get_at(nodes, i);
+
+        assert((node->file_data != NULL && S_ISREG(node->info.mode)) || (node->file_data == NULL && !S_ISREG(node->info.mode)));
+        
         if(node->file_data != NULL)
         {
-                        if(!S_ISREG(node->info.st_mode)){
-                            fprintf(stderr, "WTFFFF???!!?!?!??\n\n");
-                            exit(EXIT_FAILURE);
-                        }
-            printf("Writing %s, index %d, file size %ld, content: %s", node->name, i, node->file_size, node->file_data);
-            node->data_offset = lseek(fd, 0, SEEK_CUR);
+            safe_sys_assign(node->data_offset, lseek(fd, 0, SEEK_CUR));
             safe_sys(write(fd, node->file_data, node->file_size));
-            // safe_sys(write(fd, node->file_data, node->file_size));
-            // printf("DEBUG\t Wrote %s, with a size of %ld, new offset %ld\n", node->file_data, node->file_size, lseek(fd, 0, SEEK_CUR));
-            // printf("Data offset: %ld\n", node->data_offset);
-        } else if(S_ISREG(node->info.st_mode)){
-            fprintf(stderr, "File data is NULL\n");
-            exit(EXIT_FAILURE);
         }
     }
-    
-    off_t metadata_offset = lseek(fd, 0, SEEK_CUR);
+
+
+    off_t metadata_offset;
+    safe_sys_assign(metadata_offset, lseek(fd, 0, SEEK_CUR));
 
     // write metadata
-    for(int i = 0 ; i < size ; i++){
-        off_t current_offset = lseek(fd, 0, SEEK_CUR);
+    safe_sys(write(fd, &size, sizeof(size)));
+    for(int i = 0 ; i < size ; i++)
+    {
         MyzNode node = vector_get_at(nodes, i);
-        // printf("DEBUG\t Writing node %d, current offset: %ld, name: %s, file_size: %ld\n", i, current_offset, node->name, node->file_size);
-        metadata_write_node(node, fd);
+        write_metadata_node(node, fd);
     }
 
-    off_t file_size = lseek(fd, 0, SEEK_CUR);
-
-    // Update header with final offsets and sizes
     myz->header->metadata_offset = metadata_offset;
-    myz->header->file_size = file_size;
+    safe_sys_assign(myz->header->file_size, lseek(fd, 0, SEEK_END));
     header_write(myz->header, fd);
 
     safe_sys(close(fd));
 }
 
-void read_metadata(Myz myz, int fd)
+static void read_stat(int fd, MyzNode node)
 {
-	lseek(fd, myz->header->metadata_offset, SEEK_SET);
-
-	Metadata metadata = safe_malloc(sizeof(*metadata));
-    metadata->nodes = vector_create(0, NULL);   // TODO: destroy function
-	MyzNode node = NULL;
-	while((node = metadata_read_node(fd)) != NULL)
-	{
-		vector_insert_last(metadata->nodes, node);
-	}
-
-	myz->metadata = metadata;
+    guaranteed_read(fd, &node->info.mode, sizeof(node->info.mode));
+    guaranteed_read(fd, &node->info.uid, sizeof(node->info.uid));
+    guaranteed_read(fd, &node->info.gid, sizeof(node->info.gid));
 }
 
-Myz read_from_file(const char* path)
+static void write_stat(int fd, MyzNode node)
 {
-    int fd;
-    safe_sys_assign(fd, open(path, O_RDONLY));
+    safe_sys(write(fd, &node->info.mode, sizeof(node->info.mode)));
+    safe_sys(write(fd, &node->info.uid, sizeof(node->info.uid)));
+    safe_sys(write(fd, &node->info.gid, sizeof(node->info.gid)));
+}
 
-    Myz myz = safe_malloc(sizeof(*myz));
+static Vector read_entries(int fd)
+{
+    int size;
+    guaranteed_read(fd, &size, sizeof(size));
+    Vector entries = vector_create(size, free);
 
-    myz->header = header_get(fd);
+    for(int i = 0; i < size; i++)
+    {
+        Entry entry = safe_malloc(sizeof(*entry));
+        size_t name_length;
+        guaranteed_read(fd, &name_length, sizeof(name_length));
+        guaranteed_read(fd, entry->name, sizeof(*entry->name) * name_length);
 
-    read_metadata(myz, fd);
+        guaranteed_read(fd, &entry->myznode_index, sizeof(entry->myznode_index));
+        vector_insert_last(entries, entry);
+    }
+    return entries;
+}
+
+static MyzNode read_node(int fd)
+{
+    MyzNode node = safe_malloc(sizeof(*node));
+    size_t name_length;
+    guaranteed_read(fd, &name_length, sizeof(name_length));
+    printf("LENGTH: %ld\n", name_length);
+    guaranteed_read(fd, node->name, name_length);
+    read_stat(fd, node);
+    guaranteed_read(fd, &node->compressed, sizeof(node->compressed));
+    if(S_ISREG(node->info.mode))
+    {
+        guaranteed_read(fd, &node->data_offset, sizeof(node->data_offset));
+        guaranteed_read(fd, &node->file_size, sizeof(node->file_size));
+    }
+    if(S_ISDIR(node->info.mode))
+    {
+        node->entries = read_entries(fd);
+    }
+
+    // printf("DEBUG\t name %s, data_offset %ld, file_size %ld, mode %o , info size %ld \n", node->name, node->data_offset, node->file_size, node->info.mode, node->info.st_size);
+    // printf("DEBUG: mode: %o, st_size: %ld, uid: %d, gid: %d\n", 
+    //        node->info.mode, node->info.st_size, node->info.uid, node->info.gid);
+
+    return node;
+}
+
+
+static Header read_header(int fd)
+{
+    Header header = safe_malloc(sizeof(*header));
+
+    safe_sys(lseek(fd, 0, SEEK_SET));
+
+    guaranteed_read(fd, &header->magic_number, MAGIC_NUMBER_SIZE);
+    if(strcmp(header->magic_number, MAGIC_NUMBER) != 0)
+    {
+        fprintf(stderr, "Invalid Magic Number, make sure its a .myz file\n");
+        exit(EXIT_FAILURE);
+    }
     
-    for(int i = 0; i < vector_size(myz->metadata->nodes); i++)
+    guaranteed_read(fd, &header->metadata_offset, sizeof(header->metadata_offset));
+
+    guaranteed_read(fd, &header->file_size, sizeof(header->file_size));
+
+    return header;
+}
+
+Myz read_myz_file(char* name)
+{
+    Myz myz = safe_malloc(sizeof(*myz));
+    int fd;
+    safe_sys_assign(fd, open(name, O_RDONLY));
+    
+    myz->header = read_header(fd);
+
+    safe_sys(lseek(fd, myz->header->metadata_offset, SEEK_SET));
+
+    int metadata_entries;
+    myz->metadata = safe_malloc(sizeof(*myz->metadata));
+    guaranteed_read(fd, &metadata_entries, sizeof(metadata_entries));
+    myz->metadata->nodes = vector_create(metadata_entries, myznode_destroy);
+    printf("METADATA ENTRIES: %d\n", metadata_entries);
+    
+    for(int i = 0; i < metadata_entries; i++)
+    {
+       MyzNode node = read_node(fd);
+       vector_insert_last(myz->metadata->nodes, node);
+    }
+
+    for(int i = 0; i < metadata_entries; i++)
     {
         MyzNode node = vector_get_at(myz->metadata->nodes, i);
-        
-        if(S_ISREG(node->info.st_mode))
+        if(S_ISREG(node->info.mode))
         {
             safe_sys(lseek(fd, node->data_offset, SEEK_SET));
-            node->file_data = safe_malloc(node->file_size * sizeof(*node->file_data));
+            node->file_data = safe_malloc(sizeof(*node->file_data) * node->file_size);
             guaranteed_read(fd, node->file_data, node->file_size * sizeof(*node->file_data));
         }
     }
-
-
+    
+    safe_sys(close(fd));
     return myz;
 }
-
-

@@ -31,8 +31,6 @@ off_t header_get_file_size_offset(void);
 
 off_t header_get_data_offset(void);
 
-Header header_get(int fd);
-
 void header_write(Header header, int fd);
 
 #endif // HEADER_H

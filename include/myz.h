@@ -15,9 +15,11 @@ Myz read_from_file(const char* path);
 
 void write_to_file(Myz myz);
 
-void write_to_file_create(Myz myz, const char* file_name);
+void create_myz_file(Myz myz, const char* file_name);
 
 void read_metadata(Myz myz, int fd);
 
+
+Myz read_myz_file(char* name);
 
 #endif // MYZ_H

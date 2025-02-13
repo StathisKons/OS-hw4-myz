@@ -16,12 +16,20 @@ typedef enum {
 
 #define MAX_NAME 256
 
+
+typedef struct {
+	mode_t mode;
+	uid_t uid;
+	gid_t gid;
+} Info;
+
+
 struct myznode {
 	char name[MAX_NAME];
-	struct stat info; 
+	
 	// FileType type;
 	bool compressed;
-
+	Info info;
 	// file specific
 	off_t data_offset;
 	long int file_size;
@@ -47,7 +55,6 @@ typedef struct {
 
 
 
-
 Metadata metadata_create(void);
 
 void metadata_destroy(Metadata metadata);
@@ -67,8 +74,7 @@ void write_Data(Metadata metadata);
 
 void read_Data(Metadata metadata, char* path, bool compressed);
     
-void metadata_write_node(MyzNode node, int fd);
+void myznode_destroy(Pointer myz_node);
 
-MyzNode metadata_read_node(int fd);
 
 #endif // METADATA_H 

@@ -28,31 +28,6 @@ off_t header_get_data_offset(void)
     return HEADER_DATA_OFFSET;
 }
 
-
-Header header_get(int fd)
-{
-    char buffer[64];
-
-    Header header = safe_malloc(sizeof(*header));
-
-    safe_sys(lseek(fd, 0, SEEK_SET));
-
-    guaranteed_read(fd, buffer, sizeof(MAGIC_NUMBER));
-    if(strcmp(buffer, MAGIC_NUMBER) != 0)
-    {
-        perror("Magic number is not correct\n");
-        exit(EXIT_FAILURE);
-    }
-    
-    guaranteed_read(fd, buffer, sizeof(off_t));
-    memcpy(&(header->metadata_offset), buffer, sizeof(off_t));
-
-    guaranteed_read(fd, buffer, sizeof(int64_t));
-    memcpy(&(header->file_size), buffer, sizeof(int64_t));
-
-    return header;
-}
-
 void header_write(Header header, int fd)
 {
     write_magic_number(fd);
