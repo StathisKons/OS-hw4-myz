@@ -19,7 +19,7 @@ int main(/*int argc, char** argv*/){
     // // Myz myz = read_from_file("temp.myz");
     // Metadata metadata = metadata_create();
 
-    // read_Data(metadata, "temp", false);
+    // read_Data(metadata, "dummy", false);
     // print_data(metadata);
     // write_Data(metadata);   // extract
 
@@ -28,10 +28,10 @@ int main(/*int argc, char** argv*/){
     // myz->metadata = metadata;
     // myz->header = safe_malloc(sizeof(*myz->header));
 
-    // write_to_file_create(myz, "temp.myz");
+    // write_to_file_create(myz, "dummy.myz");
 
 
-    Myz myz = read_from_file("temp.myz");
+    Myz myz = read_from_file("dummy.myz");
     print_data(myz->metadata);
     write_Data(myz->metadata);
     return 0;

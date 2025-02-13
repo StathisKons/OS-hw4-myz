@@ -14,6 +14,7 @@
 #include <wait.h>
 #include "header.h"
 
+
 static void myznode_destroy(Pointer myz_node);
 static bool is_compressed(char* path);
 char* compress_and_read(const char* path, int* fsize);
@@ -27,7 +28,7 @@ static void read_data(char* path, Metadata metadata, bool compressed, int dir_in
 
 Entry entry_create(char* name, int myznode_index){
 	Entry entry = safe_malloc(sizeof(*entry));
-	entry->name = name;
+	strcpy(entry->name, name);
 	entry->myznode_index = myznode_index;	
 
 	return entry;
@@ -81,7 +82,7 @@ void metadata_destroy(Metadata metadata)
 void read_Data(Metadata metadata, char* path, bool compressed)
 {
 	struct stat info;
-	char* tpath = strdup(path);
+	char* tpath = (char*)strdup(path);
 	char relpath[1024] = {0};
 
 	char* token;
@@ -110,7 +111,7 @@ void read_Data(Metadata metadata, char* path, bool compressed)
 		}
 		prev = cur;
 	} while((token = strtok(NULL, delims)));
-
+	free(tpath);
 	read_data(path, metadata, compressed, vector_size(metadata->nodes) - 1);
 }
 
@@ -433,8 +434,11 @@ static void write_entries(Vector entries, int fd){
 
 	for(int i = 0 ; i < size ; i++){
 		Entry entry = vector_get_at(entries, i);
+		off_t offset = lseek(fd, 0, SEEK_CUR);
+		printf("DEBUG\t Writing entry %s, at offset %ld, index %d\n", entry->name, offset, entry->myznode_index);
 		safe_sys(write(fd, entry->name, sizeof(*entry->name) * MAX_NAME));
 		safe_sys(write(fd, &(entry->myznode_index), sizeof(entry->myznode_index)));
+		printf("DEBUG\t Finished writing entry %s, new offset %ld\n", entry->name, lseek(fd, 0, SEEK_CUR));
 	}
 }
 	
@@ -464,7 +468,7 @@ static Vector read_entries(int fd)
 	for(int i = 0; i < size; i++)
 	{
 		Entry entry = safe_malloc(sizeof(*entry));
-		entry->name = safe_malloc(sizeof(*entry->name) * MAX_NAME);		// TODO CHANGE
+		// entry->name = safe_malloc(sizeof(*entry->name) * MAX_NAME);		// TODO CHANGE
 		int index;
 		guaranteed_read(fd, entry->name, /*sizeof(*entry->name)**/256);
 		guaranteed_read(fd, &index, sizeof(index));
@@ -481,17 +485,27 @@ MyzNode metadata_read_node(int fd)
 {
 	MyzNode node = safe_malloc(sizeof(*node));
 	int ret;
-	safe_sys_assign(ret, (read(fd, node->name, sizeof((node->name)))));
-	printf("metadata read node\t%s\n", node->name);
+	safe_sys_assign(ret, (guaranteed_read(fd, node->name, sizeof((node->name)))));
+	if (ret >= sizeof(node->name))
+	{
+        node->name[sizeof(node->name) - 1] = '\0';
+	}
+    else
+	{
+        node->name[ret] = '\0';
+	}
+
+	printf("metadata read node: %s\n", node->name);
 	if(ret == 0)
 	{
 		free(node);
 		return NULL;
 	}
 
+	bool var = false;
 	guaranteed_read(fd, &(node->info), sizeof(node->info));
-	guaranteed_read(fd, &(node->compressed), sizeof(node->compressed));
-	printf("%d\n", node->compressed);
+	guaranteed_read(fd, &var, sizeof(var));
+	node->compressed = var;
 	guaranteed_read(fd, &(node->data_offset), sizeof(node->data_offset));
 	guaranteed_read(fd, &(node->file_size), sizeof(node->file_size));
 	if(S_ISDIR(node->info.st_mode))

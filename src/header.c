@@ -56,8 +56,8 @@ Header header_get(int fd)
 void header_write(Header header, int fd)
 {
     write_magic_number(fd);
-    write_file_size(fd, header->file_size);
     write_metadata_offset(fd, header->metadata_offset);
+    write_file_size(fd, header->file_size);
 }
 
 static void write_magic_number(int fd)

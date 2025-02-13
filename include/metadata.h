@@ -36,7 +36,7 @@ typedef struct myznode* MyzNode;
 
 
 typedef struct {
-	char* name;
+	char name[256];
 	int myznode_index;
 } *Entry;
 

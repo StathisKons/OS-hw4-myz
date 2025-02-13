@@ -23,8 +23,15 @@ void write_to_file_create(Myz myz, const char* file_name) {
                             fprintf(stderr, "WTFFFF???!!?!?!??\n\n");
                             exit(EXIT_FAILURE);
                         }
-            safe_sys(write(fd, node->file_data, node->file_size));
+            printf("Writing %s, index %d, file size %ld, content: %s", node->name, i, node->file_size, node->file_data);
             node->data_offset = lseek(fd, 0, SEEK_CUR);
+            safe_sys(write(fd, node->file_data, node->file_size));
+            // safe_sys(write(fd, node->file_data, node->file_size));
+            // printf("DEBUG\t Wrote %s, with a size of %ld, new offset %ld\n", node->file_data, node->file_size, lseek(fd, 0, SEEK_CUR));
+            // printf("Data offset: %ld\n", node->data_offset);
+        } else if(S_ISREG(node->info.st_mode)){
+            fprintf(stderr, "File data is NULL\n");
+            exit(EXIT_FAILURE);
         }
     }
     
@@ -32,7 +39,9 @@ void write_to_file_create(Myz myz, const char* file_name) {
 
     // write metadata
     for(int i = 0 ; i < size ; i++){
+        off_t current_offset = lseek(fd, 0, SEEK_CUR);
         MyzNode node = vector_get_at(nodes, i);
+        // printf("DEBUG\t Writing node %d, current offset: %ld, name: %s, file_size: %ld\n", i, current_offset, node->name, node->file_size);
         metadata_write_node(node, fd);
     }
 
