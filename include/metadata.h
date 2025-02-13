@@ -21,7 +21,7 @@ typedef struct {
 	mode_t mode;
 	uid_t uid;
 	gid_t gid;
-} Info;
+} *Info;
 
 
 struct myznode {

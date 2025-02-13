@@ -23,7 +23,7 @@ static void read_data(char* path, Metadata metadata, bool compressed, int dir_in
 //Retrieve file permissions in Unix-like format from a Myznode using the stat structure
 //static mode_t getPermissions(MyzNode node)
 // 	{
-//  		return node->info.mode & 0777;
+//  		return node->info->mode & 0777;
 // 	}
 
 Entry entry_create(char* name, int myznode_index){
@@ -126,12 +126,12 @@ void metadata_insert(Metadata metadata, char* name, struct stat info, bool compr
 	assert(metadata != NULL);
 
 	MyzNode node = safe_malloc(sizeof(*node));
-
 	strcpy(node->name, name); 
-	node->info.gid = info.st_gid;
-	node->info.uid = info.st_uid;
-	node->info.mode = info.st_mode;
-	// node->type = find_type(info.mode);
+	node->info = safe_malloc(sizeof(*node->info));
+	node->info->gid = info.st_gid;
+	node->info->uid = info.st_uid;
+	node->info->mode = info.st_mode;
+	// node->type = find_type(info->mode);
 	node->compressed = compressed;
 
 	node->data_offset = -1;	// TODO Define
@@ -160,12 +160,18 @@ void myznode_destroy(Pointer myz_node)
 char* read_file(char* path, int* fsize){
 	int fd = open(path, O_RDONLY);
 
+
 	*fsize = lseek(fd, 0, SEEK_END);
+	printf("FILE SIZE %d\n", *fsize);
+	if(*fsize == 0) 
+	{
+		close(fd);
+		return NULL;
+	}
 	lseek(fd, 0, SEEK_SET);
 
 	char* fdata = safe_malloc(sizeof(*fdata) * (*fsize));
 	guaranteed_read(fd, fdata, sizeof(*fdata) * (*fsize));
-
 	close(fd);
 	return fdata;
 }
@@ -188,7 +194,7 @@ static void read_data(char* path, Metadata metadata, bool compressed, int dir_in
 		sprintf(fpath, "%s/%s", path, entries->d_name);
 		
 		struct stat info;
-	printf("DEBUG\t %s\n", fpath);
+		printf("DEBUG\t %s\n", fpath);
 		safe_sys(lstat(fpath, &info));
 
 		char* fdata = NULL;
@@ -239,13 +245,13 @@ static void print_directory(Metadata metadata, MyzNode node, char* path, bool* v
 
 		MyzNode tnode = vector_get_at(metadata->nodes, entry->myznode_index);
 
-		if(S_ISDIR(tnode->info.mode))
+		if(S_ISDIR(tnode->info->mode))
 		{
 			char npath[1024] = {0};
 			sprintf(npath, "%s/%s", path, tnode->name);
 			print_directory(metadata, tnode, npath, visited);
 		}
-		else if(S_ISREG(tnode->info.mode))
+		else if(S_ISREG(tnode->info->mode))
 		{
 			printf("%s/%s\n", path, tnode->name);
 		}
@@ -261,13 +267,13 @@ void print_data(Metadata metadata)
 		MyzNode node = vector_get_at(metadata->nodes, i);
 		if(visited[i]) continue;
 		visited[i] = true;
-		if(S_ISDIR(node->info.mode))
+		if(S_ISDIR(node->info->mode))
 		{
 			char path[1000] = {0};
 			strcpy(path, node->name);
 			print_directory(metadata, node, path, visited);
 		}
-		else if(S_ISREG(node->info.mode))
+		else if(S_ISREG(node->info->mode))
 		{
 			printf("%s\n", node->name);
 		}
@@ -344,6 +350,7 @@ static void write_rec(Metadata metadata, MyzNode node, char* path, bool* visited
 		return;
 	for(int i = 0; i < vector_size(node->entries); i++)
 	{		
+		printf("VSIZE: %d\n", i);
 		Entry entry = vector_get_at(node->entries, i);
 		MyzNode tnode = vector_get_at(metadata->nodes, entry->myznode_index);
 		
@@ -356,17 +363,19 @@ static void write_rec(Metadata metadata, MyzNode node, char* path, bool* visited
 		if(visited[entry->myznode_index]) continue;
 		visited[entry->myznode_index] = true;
 		
-		if(S_ISDIR(tnode->info.mode))
+		if(S_ISDIR(tnode->info->mode))
 		{
-			mkdir(tpath, node->info.mode);
+			mkdir(tpath, node->info->mode);
 			write_rec(metadata, tnode, tpath, visited);
 		}
-		else if(S_ISREG(tnode->info.mode))
+		else if(S_ISREG(tnode->info->mode))
 		{
 			printf("PATH %s\n", tpath);
 			int fd;
-			safe_sys_assign(fd, open(tpath, O_CREAT | O_TRUNC | O_WRONLY, tnode->info.mode));
-			safe_sys(write(fd, tnode->file_data, tnode->file_size));
+			safe_sys_assign(fd, open(tpath, O_CREAT | O_TRUNC | O_WRONLY, 0777));
+			if(tnode->file_data != NULL){						// !!! CHECK GIANNH, to ebala twra
+				safe_sys(write(fd, tnode->file_data, tnode->file_size));
+			}
 			close(fd);
 			if(tnode->compressed)
 			{
@@ -396,14 +405,14 @@ void write_Data(Metadata metadata)
 		if(visited[i]) continue;
 		visited[i] = true;
 
-		if(S_ISDIR(node->info.mode))
+		if(S_ISDIR(node->info->mode))
 		{
-			mkdir(node->name, node->info.mode);
+			mkdir(node->name, node->info->mode);
 			write_rec(metadata, node, node->name, visited);
 		}
-		else if(S_ISREG(node->info.mode))
+		else if(S_ISREG(node->info->mode))
 		{
-			int fd = open(node->name, O_CREAT | O_TRUNC | O_WRONLY, node->info.mode);
+			int fd = open(node->name, O_CREAT | O_TRUNC | O_WRONLY, node->info->mode);
 			safe_sys(write(fd, node->file_data, node->file_size));
 			close(fd);
 			if(node->compressed)

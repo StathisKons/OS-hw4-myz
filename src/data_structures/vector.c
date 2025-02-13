@@ -19,7 +19,7 @@ Vector vector_create(int size, DestroyFunc destroy_value){
     assert(size >= 0);
     Vector vec = safe_malloc(sizeof(*vec));
 
-    vec->size = size;
+    vec->size = 0;
     vec->destroy_value = destroy_value;
 
     vec->capacity = size > VEC_MIN_CAPACITY ? size : VEC_MIN_CAPACITY;
