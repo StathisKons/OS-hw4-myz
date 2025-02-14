@@ -162,7 +162,6 @@ char* read_file(char* path, int* fsize){
 
 
 	*fsize = lseek(fd, 0, SEEK_END);
-	printf("FILE SIZE %d\n", *fsize);
 	if(*fsize == 0) 
 	{
 		close(fd);
@@ -194,7 +193,6 @@ static void read_data(char* path, Metadata metadata, bool compressed, int dir_in
 		sprintf(fpath, "%s/%s", path, entries->d_name);
 		
 		struct stat info;
-		printf("DEBUG\t %s\n", fpath);
 		safe_sys(lstat(fpath, &info));
 
 		char* fdata = NULL;
@@ -350,7 +348,6 @@ static void write_rec(Metadata metadata, MyzNode node, char* path, bool* visited
 		return;
 	for(int i = 0; i < vector_size(node->entries); i++)
 	{		
-		printf("VSIZE: %d\n", i);
 		Entry entry = vector_get_at(node->entries, i);
 		MyzNode tnode = vector_get_at(metadata->nodes, entry->myznode_index);
 		
@@ -370,7 +367,6 @@ static void write_rec(Metadata metadata, MyzNode node, char* path, bool* visited
 		}
 		else if(S_ISREG(tnode->info->mode))
 		{
-			printf("PATH %s\n", tpath);
 			int fd;
 			safe_sys_assign(fd, open(tpath, O_CREAT | O_TRUNC | O_WRONLY, 0777));
 			if(tnode->file_data != NULL){						// !!! CHECK GIANNH, to ebala twra
@@ -382,7 +378,7 @@ static void write_rec(Metadata metadata, MyzNode node, char* path, bool* visited
 				int pid = fork();
 				if(pid == 0)
 				{
-					char* argv[] = {"gzip", "-d", tpath, NULL};
+					char* argv[] = {"gzip", "-d", "-f", tpath, NULL};
 					execvp("gzip", argv);
 				}
 				wait(NULL);
@@ -430,5 +426,23 @@ void write_Data(Metadata metadata)
 
 
 	free(visited);
-
 }
+
+// void find_rec(char* returnPath, char* Path)
+
+// void findPath(char* returnPath, char* Pathtofind, Metadata metadata)
+// {
+// 	char* temp = strdup(Pathtofind);
+// 	char* token = strtok(temp, "/");
+
+// 	while(token != NULL)
+// 	{
+		
+
+// 	}
+
+
+
+// 	free(temp);
+
+// }

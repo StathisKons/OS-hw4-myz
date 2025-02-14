@@ -22,4 +22,6 @@ void read_metadata(Myz myz, int fd);
 
 Myz read_myz_file(char* name);
 
+MyzNode findPath(char* path, Metadata metadata, bool* file_exists, bool* exists);
+
 #endif // MYZ_H

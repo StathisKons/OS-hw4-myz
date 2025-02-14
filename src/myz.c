@@ -58,6 +58,12 @@ static void write_name(int fd, const char* name)
 
 static void write_entries(Vector entries, int fd)
 {
+    if(entries == NULL)
+    {
+        int size = 0;
+        safe_sys(write(fd, &size, sizeof(size)));
+        return;
+    }
     int size = vector_size(entries);
     safe_sys(write(fd, &size, sizeof(size)));
     for(int i = 0 ; i < size ; i++)
@@ -103,8 +109,6 @@ void create_myz_file(Myz myz, const char* file_name)
     for(int i = 0 ; i < size ; i++)
     {
         MyzNode node = vector_get_at(nodes, i);
-        printf("NAME: %s\n", node->name);
-        printf("ADRESS: %p\n", node->file_data);
         //assert((node->file_data != NULL && S_ISREG(node->info->mode)) || (node->file_data == NULL && !S_ISREG(node->info->mode)));
         // printf("writing %s, data: %s\n", node->name, node->file_data);
         
@@ -152,6 +156,7 @@ static Vector read_entries(int fd)
 {
     int size;
     guaranteed_read(fd, &size, sizeof(size));
+    if(size == 0) return NULL;
     Vector entries = vector_create(size, free);
 
     for(int i = 0; i < size; i++)
@@ -236,7 +241,6 @@ Myz read_myz_file(char* name)
         MyzNode node = vector_get_at(myz->metadata->nodes, i);
         if(S_ISREG(node->info->mode))
         {
-            printf("reading %s, data_offset %ld\n", node->name, node->data_offset);
             if(node->data_offset == -1)
             {
                 node->file_data == NULL;
@@ -253,3 +257,127 @@ Myz read_myz_file(char* name)
     safe_sys(close(fd));
     return myz;
 }
+
+static MyzNode searchNode(Metadata metadata, char* name)
+{
+    for(int i = 0; i < vector_size(metadata->nodes); i++)
+    {
+        MyzNode node = vector_get_at(metadata->nodes, i);
+        if(strcmp(node->name, name) == 0)
+            return node;
+    }
+
+    return NULL;
+}
+
+static MyzNode searchEntries(Metadata metadata, MyzNode node,  char* name)
+{
+    if(node->entries != NULL)
+    {
+        for(int i = 0; i < vector_size(node->entries); i++)
+        {
+            Entry entry = vector_get_at(node->entries, i);
+            MyzNode node = vector_get_at(metadata->nodes, entry->myznode_index);
+
+            if(strcmp(node->name, name) == 0)
+            {
+                return node;
+            }
+            else if(node->compressed)
+            {
+                char temp[100];
+                memset(temp, 0, 100);
+                strncpy(temp, node->name, strlen(node->name) - 3);
+                if(strcmp(temp, name) == 0)
+                    return node;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+MyzNode findPath(char* path, Metadata metadata, bool* file_exists, bool* exists)
+{
+    MyzNode prev = NULL;
+    *exists = true;
+    *file_exists = false;
+    bool fl = false;
+    char* tpath = strdup(path);
+    char* token = strtok(tpath, "/");
+    struct stat info;
+
+    char curpath[1000];
+    memset(curpath, 0, 1000);
+    strcat(curpath, token);
+
+    MyzNode node = searchNode(metadata, token);
+    if(node == NULL)
+    {
+        free(tpath);
+        *exists = false;
+        return NULL;
+    }
+    
+    while((token = strtok(NULL, "/")) != NULL)
+    {
+        fl = true;
+        MyzNode tnode = searchEntries(metadata, node, token);
+        if(tnode == NULL && prev == NULL) 
+        {
+            free(tpath);
+            return node;
+        }
+        else if(tnode == NULL)
+        {
+            free(tpath);
+            return prev;
+        }
+        strcat(curpath, "/");
+        strcat(curpath, token);
+        if(strcmp(curpath, path) == 0)
+        {
+            free(tpath);
+            *file_exists = true;
+            return NULL;
+        }
+
+        lstat(curpath, &info);
+        if(tnode->info->mode != info.st_mode) // Conflicting file types
+        {
+            free(tpath);
+            *file_exists = true;
+            return NULL;
+        }
+
+        prev = tnode;
+    }
+    if(!fl && node != NULL)
+    {
+        if(strcmp(curpath, path) == 0)
+        {
+            *file_exists = true;
+            free(tpath);
+            return NULL;
+        }
+        strcat(curpath, "/");
+        if(strcmp(curpath, path) == 0)
+        {
+            *file_exists = true;
+            free(tpath);
+            return NULL;
+        }
+        free(tpath);
+        return node;
+    }
+
+    *exists = false;
+    free(tpath);
+    return NULL;
+}
+
+// void append(Metadata metadata)
+// {
+//     struct stat info;
+//     lstat();
+// }
