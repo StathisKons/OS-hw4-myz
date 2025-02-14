@@ -39,5 +39,32 @@
 int main(int argc, char** argv){
     Arguments args = get_arguments(argc, argv);
 
+    switch(args.operation){
+        case CREATE:
+
+            break;
+        case APPEND:
+
+            break;
+        case EXTRACT:
+
+            break;
+        case DELETE:
+        
+            break;
+        case PRINT_METADATA:
+        
+            break;
+        case QUERY:
+        
+            break;
+        case PRINT_HIERARCHY:
+        
+            break;
+        default:
+            fprintf(stderr, "Wtf\n");
+            exit(EXIT_FAILURE);
+    }
+
     return 0;
 }
