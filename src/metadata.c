@@ -82,7 +82,7 @@ void metadata_destroy(Metadata metadata)
 void read_Data(Metadata metadata, char* path, bool compressed)
 {
 	struct stat info;
-	char* tpath = (char*)strdup(path);
+	char* tpath = strdup(path);
 	char relpath[1024] = {0};
 
 	char* token;

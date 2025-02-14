@@ -24,4 +24,6 @@ Myz read_myz_file(char* name);
 
 MyzNode findPath(char* path, Metadata metadata, bool* file_exists, bool* exists);
 
+Myz myz_create(const char* file_name, const char* files[], int file_count, bool compress);
+
 #endif // MYZ_H

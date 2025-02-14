@@ -1,6 +1,6 @@
-// #include "metadata.h"
-// #include "myz.h"
-// #include "sys_utils.h"
+#include "metadata.h"
+#include "myz.h"
+#include "sys_utils.h"
 #include "args.h"
 #include <unistd.h>
 #include <stdbool.h>
@@ -8,13 +8,25 @@
 #include <stdlib.h>
 
 
-// // read .myz
-// int main(/*int argc, char** argv*/){
-//     Myz myz = read_myz_file("temp.myz");
-//     print_data(myz->metadata);
-//     write_Data(myz->metadata);
-//     return 0;
-// }
+// read .myz
+int main(/*int argc, char** argv*/){
+    Myz myz = read_myz_file("temp.myz");
+    bool exists;
+    bool file_exists;
+    // MyzNode node = findPath("temp/file1", myz->metadata, &file_exists, &exists);
+    // if(node != NULL && exists == true)
+    // {
+    //     printf("EXISTS: %d\tFILE_EXISTS: %d\tNAME: %s\n", exists, file_exists, "nothing");
+    // }
+    // else if(node == NULL && exists == true)
+    // {
+    //     printf("Conflicting types, entry already exists as a file/directory\n");
+    // }
+    //else if(file_exists)
+    print_data(myz->metadata);
+    write_Data(myz->metadata);
+    return 0;
+}
 
 
 // //write .myz
@@ -22,7 +34,7 @@
 //     // // Myz myz = read_from_file("temp.myz");
 //     Metadata metadata = metadata_create();
 
-//     read_Data(metadata, "temp", true);
+//     read_Data(metadata, "test_cases/DirA", true);
 //     print_data(metadata);
 //     write_Data(metadata);   // extract
 
@@ -36,35 +48,35 @@
 //     return 0;
 // }
 
-int main(int argc, char** argv){
-    Arguments args = get_arguments(argc, argv);
+// int main(int argc, char** argv){
+//     Arguments args = get_arguments(argc, argv);
 
-    switch(args.operation){
-        case CREATE:
+//     switch(args.operation){
+//         case CREATE:
+//             myz_create(args.archive_file, args.files, args.num_files, args.use_compression); // unfinished
+//             break;
+//         case APPEND:
 
-            break;
-        case APPEND:
+//             break;
+//         case EXTRACT:
 
-            break;
-        case EXTRACT:
-
-            break;
-        case DELETE:
+//             break;
+//         case DELETE:
         
-            break;
-        case PRINT_METADATA:
+//             break;
+//         case PRINT_METADATA:
         
-            break;
-        case QUERY:
+//             break;
+//         case QUERY:
         
-            break;
-        case PRINT_HIERARCHY:
+//             break;
+//         case PRINT_HIERARCHY:
         
-            break;
-        default:
-            fprintf(stderr, "Wtf\n");
-            exit(EXIT_FAILURE);
-    }
+//             break;
+//         default:
+//             fprintf(stderr, "Wtf\n");
+//             exit(EXIT_FAILURE);
+//     }
 
-    return 0;
-}
+//     return 0;
+// }

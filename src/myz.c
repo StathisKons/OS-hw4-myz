@@ -243,7 +243,7 @@ Myz read_myz_file(char* name)
         {
             if(node->data_offset == -1)
             {
-                node->file_data == NULL;
+                node->file_data = NULL;
                 continue;
             }
 
@@ -381,3 +381,16 @@ MyzNode findPath(char* path, Metadata metadata, bool* file_exists, bool* exists)
 //     struct stat info;
 //     lstat();
 // }
+
+// TODO read Data from files
+Myz myz_create(const char* file_name, const char* files[], int file_count, bool compress){
+    Myz myz = safe_malloc(sizeof(*myz));
+    myz->header = safe_malloc(sizeof(*myz->header));
+    myz->metadata = metadata_create();
+
+    // read_Data(myz->metadata, )   // εχει θεματα...
+
+    create_myz_file(myz, file_name);
+
+    return myz;
+}
