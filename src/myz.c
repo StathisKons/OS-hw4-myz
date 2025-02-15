@@ -326,11 +326,13 @@ MyzNode findPath(char* path, Metadata metadata, bool* file_exists, bool* exists)
         MyzNode tnode ;
         if(!fl)
         {
+            printf("HERE2\n");
             fl = true;
             tnode = searchEntries(metadata, node, token);
         }
         else
         {
+            printf("Here3\n");
             tnode = searchEntries(metadata, prev, token);
         }
         if(tnode == NULL && prev == NULL) 
@@ -405,46 +407,42 @@ MyzNode findPath(char* path, Metadata metadata, bool* file_exists, bool* exists)
 //     lstat();
 // }
 
-// TODO read Data from files
-Myz myz_create(const char* file_name, const char* files[], int file_count, bool compress){
-    Myz myz = safe_malloc(sizeof(*myz));
-    myz->header = safe_malloc(sizeof(*myz->header));
-    myz->metadata = metadata_create();
+// // TODO read Data from files
+// Myz myz_create(const char* file_name, const char* files[], int file_count, bool compress){
+//     Myz myz = safe_malloc(sizeof(*myz));
+//     myz->header = safe_malloc(sizeof(*myz->header));
+//     myz->metadata = metadata_create();
 
-    // read_Data(myz->metadata, )   // εχει θεματα...
+//     // read_Data(myz->metadata, )   // εχει θεματα...
 
-    create_myz_file(myz, file_name);
+//     create_myz_file(myz, file_name);
 
-    return myz;
-}
+//     return myz;
+// }
 
 
-void myz_extract(const char* myz_name, const char* files[], int file_count){
-    Myz myz = read_myz_file(myz_name);
-    Metadata metadata = myz->metadata;
+// void myz_extract(const char* myz_name, const char* files[], int file_count){
+//     Myz myz = read_myz_file(myz_name);
+//     Metadata metadata = myz->metadata;
 
-    for(int i = 0 ; i < file_count ; i++){
-        bool file_exists = false;
+//     for(int i = 0 ; i < file_count ; i++){
+//         bool file_exists = false;
         
-    }
-}
+//     }
+// }
 
 
-bool compare_names(char* name1, char* name2, bool compressed1, bool compressed2)
+bool compare_names(MyzNode node, char* name)
 {
-    char tname1[256];
-    memset(tname1, 0, 256);
-    if(compressed1)
-        strncpy(tname1, name1, strlen(name1) - 3);
+    char tname1[256] = {0};
+    if(node->compressed && !S_ISDIR(node->info->mode))
+        strncpy(tname1, node->name, strlen(node->name) - 3);
     else
-        strcpy(tname1, name1);
+        strcpy(tname1, node->name);
 
-    char tname2[256];
-    memset(tname2, 0, 256);
-    if(compressed2)
-        strncpy(tname2, name2, strlen(name2) - 3);
-    else
-        strcpy(tname2, name2);
+    char tname2[256] = {0};
+
+    strcpy(tname2, name);
     
     if(strcmp(tname1, tname2) == 0) return true;
     else return false;
@@ -485,112 +483,115 @@ void write_after_append(Myz myz, int old_entries, char* filename)
     close(fd);
 }
 
-    
 
-bool append(Myz myz, char* path, bool compressed)
+
+ bool append(Myz myz, char* path, bool compressed)
 {
     Metadata metadata = myz->metadata;
     char* tpath = strdup(path);
-    // MyzNode node = findNode(metadata, path);
-    // if(node != NULL)
-    // {
-    //     return false; // File already exists
-    // }
-    //MyzNode node = NULL;
-
-    bool file_exists;
     bool exists;
 
-    MyzNode node = findPath(path, metadata, &file_exists, &exists);
-    printf("BOOL: %d %d\n", file_exists, exists);
-    if(node != NULL)
+    MyzNode node = metadata_find_node(metadata, path, &exists);
+    printf("NODE: %s\n", node->name);
+    if(exists)
     {
-        printf("NODENAME: %s\n", node->name);
-        for(int i = 0; i < vector_size(node->entries); i++)
+        free(tpath);
+        return false;
+    }
+    else if(strcmp(node->name, ".") == 0)
+    {
+        char* token;
+        char curpath[1000];
+        memset(curpath, 0, 1000);
+        MyzNode prev = vector_get_at(metadata->nodes, 0);
+        token = strtok(tpath, "/");
+        while(token  != NULL)
         {
-            printf("ENTRY: %s\n", ((Entry)vector_get_at(node->entries, i))->name);
+            struct stat info;
+            strcat(curpath, token);
+            lstat(curpath, &info);
+            entries_insert(prev, token,  vector_size(metadata->nodes));
+            if(S_ISREG(info.st_mode))
+            {
+                long int file_size;
+                char* file_data = read_file(curpath, &file_size);
+                metadata_insert(metadata, token, info, compressed, file_size, file_data);
+                free(tpath);
+                return true;
+            }
+
+            metadata_insert(metadata, token, info, compressed, 0, NULL);
+            strcat(curpath, "/");
+            token = strtok(NULL, "/");
         }
-    }
-    if(file_exists)
-    {
+
+        read_data(path, metadata, compressed, vector_size(metadata->nodes) -1 );
         free(tpath);
-        return false;
-    }
-    else if(node == NULL && exists)
-    {
-        free(tpath);
-        return false;
-    }
-    else if(node == NULL && !exists)
-    {
-        free(tpath);
-        read_Data(metadata, path, compressed);
         return true;
     }
 
-    if(!S_ISDIR(node->info->mode))
-    {
-        free(tpath);
-        return false;
-    }
-
-    char curpath[1000];
-    memset(curpath, 0, 1000);
-
+    char curpath[1000] = {0};
     char* token = strtok(tpath, "/");
     while(token != NULL)
     {
         strcat(curpath, token);
-        strcat(curpath, "/");
         if(strcmp(node->name, token) == 0)
         {
+            printf("BREAK\n");
             break;
         }
+        strcat(curpath, "/");
         token = strtok(NULL, "/");
     }
 
-
-    token = strtok(NULL, "/");
-    while(token != NULL)
+    strcat(curpath, "/");
+    while((token = strtok(NULL, "/")))
     {
-        strcat(curpath, token);
-
         struct stat info;
+        strcat(curpath, token);
         lstat(curpath, &info);
+        entries_insert(node, token, vector_size(metadata->nodes));
         if(S_ISREG(info.st_mode))
         {
-            int fsize ;
-
+            long fsize;
             char* file_data = read_file(curpath, &fsize);
             metadata_insert(metadata, token, info, compressed, fsize, file_data);
-            entries_insert(node, token, vector_size(metadata->nodes) - 1);
             free(tpath);
             return true;
         }
 
-        metadata_insert(metadata, token, info, false, -1, NULL);
-        entries_insert(node, token, vector_size(metadata->nodes) - 1);
-        
-        node = vector_get_at(metadata->nodes, vector_size(metadata->nodes) - 1);
-
-        if(strcmp(curpath, path) == 0)
-        {
-            read_data(path, metadata, compressed, vector_size(metadata->nodes) - 1);
-            break;
-        }
-
+        metadata_insert(metadata, token, info, compressed, 0, NULL);
         strcat(curpath, "/");
-        if(strcmp(curpath, path) == 0)
-        {
-            read_data(path, metadata, compressed, vector_size(metadata->nodes) - 1);
-            break;
-        }
-        strtok(NULL, "/");
+        node = vector_get_at(metadata->nodes, vector_size(metadata->nodes) - 1);
     }
-    
+
+    read_data(path, metadata, compressed, vector_size(metadata->nodes) - 1);
     free(tpath);
-
-
     return true;
     
+}
+
+
+void myz_query_for_existence(const Myz myz, int file_count, const char* files[]){
+    for(int i = 0 ; i < file_count ; i++){
+        bool exists;
+        metadata_find_node(myz->metadata, files[i], &exists);
+        if(exists){
+            printf("%s %s\n", files[i], exists ? "exists" : "does not exist");
+        }
+    }
+}
+
+
+// void myz_append(const char* file_name, int file_count, const char* files[], bool compress){
+//     // TODO ελεγχος πρωτα αν υπαρχει το myz, αν ναι το κανεις read, αν οχι το κανεις create
+
+//     for(int i = 0 ; i < file_count ; i++){
+//         append(myz, files[i], compress);
+//     }
+// }
+
+
+void myz_extract(Myz myz){
+    write_Data(myz->metadata);
 }

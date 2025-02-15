@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 
 // read .myz
@@ -14,26 +15,12 @@ int main(/*int argc, char** argv*/){
     int old_entries = vector_size(myz->metadata->nodes);
     bool exists;
     printf("%d old entries\n", old_entries);
-    bool file_exists;
-    MyzNode node = findPath("temp/dir1/dir2", myz->metadata, &file_exists, &exists);
-    if(node != NULL && exists == true && file_exists == false)
-    {
-        printf("EXISTS: %d\tFILE_EXISTS: %d\tNAME: %s\n", exists, file_exists, node->name);
-    }
-    else if(node == NULL && exists == true)
-    {
-        printf("Conflicting types, entry already exists as a file or directory\n");
-    }
-    else if(file_exists == true)
-    {
-        printf("File or directory exists\n");
-    }
-    
-    append(myz, "temp/dir1/dir2/", false);
+    metadata_find_node(myz->metadata, "temp/dir2/file4", &exists);
+    append(myz, "temp/dir3", false);
     print_data(myz->metadata);
 
     //write_after_append(myz, old_entries, "temp.myz");
-    printf("NEW SIZE: %d\n", vector_size(myz->metadata->nodes));
+    //printf("NEW SIZE: %d\n", vector_size(myz->metadata->nodes));
     return 0;
 }
 
@@ -45,7 +32,6 @@ int main(/*int argc, char** argv*/){
 
 //     read_Data(metadata, "temp", true);
 //     print_data(metadata);
-//     write_Data(metadata);   // extract
 
 //     // temp
 //     Myz myz = safe_malloc(sizeof(*myz));
@@ -57,35 +43,35 @@ int main(/*int argc, char** argv*/){
 //     return 0;
 // }
 
+
 // int main(int argc, char** argv){
 //     Arguments args = get_arguments(argc, argv);
-
-//     switch(args.operation){
+//     switch(args->operation){
 //         case CREATE:
-//             myz_create(args.archive_file, args.files, args.num_files, args.use_compression); // unfinished
+
 //             break;
 //         case APPEND:
-
+//             myz_append(args.archive_file, args.num_files, args->files, args.use_compression);
 //             break;
 //         case EXTRACT:
-
+//             Myz myz = read_myz_file(args->filename);
+//             myz_extract(myz);
 //             break;
 //         case DELETE:
-        
+
 //             break;
 //         case PRINT_METADATA:
-        
+
 //             break;
 //         case QUERY:
-        
+//             Myz myz = read_myz_file(args->filename);
+//             myz_query_for_existence(myz, args.num_files, args->files);
 //             break;
 //         case PRINT_HIERARCHY:
-        
+
 //             break;
 //         default:
-//             fprintf(stderr, "Wtf\n");
+//             fprintf(stderr, "Wtf, should have exited already\n");
 //             exit(EXIT_FAILURE);
 //     }
-
-//     return 0;
 // }

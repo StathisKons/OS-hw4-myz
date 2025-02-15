@@ -25,10 +25,18 @@ MyzNode findPath(char* path, Metadata metadata, bool* file_exists, bool* exists)
 
 Myz myz_create(const char* file_name, const char* files[], int file_count, bool compress);
 
-void myz_extract(const char* myz_name, const char* files[], int file_count);
+// void myz_extract(const char* myz_name, const char* files[], int file_count);
 
-bool append(Myz myz, char* path, bool compressed);
+void myz_append(const char* file_name, int file_count, const char* files[], bool compress);
 
 void write_after_append(Myz myz, int old_entries, char* filename);
+
+bool compare_names(MyzNode node, char* name);
+
+void myz_query_for_existence(const Myz myz, int file_count, const char* files[]);
+
+void myz_extract(Myz myz);
+
+bool append(Myz myz, char* path, bool compressed);
 
 #endif // MYZ_H

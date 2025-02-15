@@ -17,14 +17,14 @@
 
 void myznode_destroy(Pointer myz_node);
 static bool is_compressed(char* path);
-char* compress_and_read(const char* path, int* fsize);
+char* compress_and_read(const char* path, long int* fsize);
 void read_data(char* path, Metadata metadata, bool compressed, int dir_index);
 
-//Retrieve file permissions in Unix-like format from a Myznode using the stat structure
-//static mode_t getPermissions(MyzNode node)
-// 	{
-//  		return node->info->mode & 0777;
-// 	}
+//etrieve file permissions in Unix-like format from a Myznode using the stat structure
+static mode_t getPermissions(MyzNode node)
+	{
+ 		return node->info->mode & 0777;
+	}
 
 Entry entry_create(char* name, int myznode_index){
 	Entry entry = safe_malloc(sizeof(*entry));
@@ -88,7 +88,10 @@ void read_Data(Metadata metadata, char* path, bool compressed)
 	char* token;
 	char* delims = "/";
 	token = strtok(tpath, delims);
-	MyzNode prev = NULL;
+	info.st_mode =  __S_IFDIR;
+	metadata_insert(metadata, ".", info, compressed, -1, NULL);
+	
+	MyzNode prev = vector_get_at(metadata->nodes, 0);
 	MyzNode cur;
 	bool fl = true;
 	do {
@@ -157,7 +160,7 @@ void myznode_destroy(Pointer myz_node)
 }
 
 
-char* read_file(char* path, int* fsize){
+char* read_file(char* path, long int* fsize){
 	int fd = open(path, O_RDONLY);
 
 
@@ -198,7 +201,7 @@ void read_data(char* path, Metadata metadata, bool compressed, int dir_index)
 		safe_sys(lstat(fpath, &info));
 
 		char* fdata = NULL;
-		int fsize = 0;
+		long int fsize = 0;
 		char fname[259] = {0};
 		strcpy(fname, entries->d_name);
 		
@@ -325,7 +328,7 @@ void decompress(char* path)
 
 }
 
-char* compress_and_read(const char* path, int* fsize)
+char* compress_and_read(const char* path, long int* fsize)
 {
 	char tname[1024];
 	strcpy(tname, path);
@@ -364,13 +367,15 @@ static void write_rec(Metadata metadata, MyzNode node, char* path, bool* visited
 		
 		if(S_ISDIR(tnode->info->mode))
 		{
-			mkdir(tpath, node->info->mode);
+			mkdir(tpath, getPermissions(tnode));
 			write_rec(metadata, tnode, tpath, visited);
 		}
 		else if(S_ISREG(tnode->info->mode))
 		{
+			printf("%s\n", tnode->name);
 			int fd;
-			safe_sys_assign(fd, open(tpath, O_CREAT | O_TRUNC | O_WRONLY, 0777));
+			printf("PATH: %s\n", tpath);
+			safe_sys_assign(fd, open(tpath, O_CREAT | O_TRUNC | O_WRONLY, getPermissions(tnode)));
 			if(tnode->file_data != NULL){						// !!! CHECK GIANNH, to ebala twra
 				safe_sys(write(fd, tnode->file_data, tnode->file_size));
 			}
@@ -405,12 +410,12 @@ void write_Data(Metadata metadata)
 
 		if(S_ISDIR(node->info->mode))
 		{
-			mkdir(node->name, node->info->mode);
+			mkdir(node->name, getPermissions(node));
 			write_rec(metadata, node, node->name, visited);
 		}
 		else if(S_ISREG(node->info->mode))
 		{
-			int fd = open(node->name, O_CREAT | O_TRUNC | O_WRONLY, node->info->mode);
+			int fd = open(node->name, O_CREAT | O_TRUNC | O_WRONLY, getPermissions(node));
 			safe_sys(write(fd, node->file_data, node->file_size));
 			close(fd);
 			if(node->compressed)
@@ -430,36 +435,40 @@ void write_Data(Metadata metadata)
 	free(visited);
 }
 
-// MyzNode metadata_find_node(Metadata metadata, const char* path_to_find, bool* exists){
-// 	assert(metadata != NULL && path_to_find != NULL);
+MyzNode metadata_find_node(Metadata metadata, const char* path_to_find, bool* exists){
+	assert(metadata != NULL && path_to_find != NULL);
 
-// 	*exists = true;
+	*exists = true;
 
-// 	char* path = strdup(path_to_find);	// strtok modifies the string
-// 	char* token = strtok(path, "/");
+	char* path = strdup(path_to_find);	// strtok modifies the string so we create a copy
+	char* token = strtok(path, "/");
 
-// 	MyzNode best_fit = NULL;
+	MyzNode current = vector_get_at(metadata->nodes, 0);
 
-// 	while(token != NULL){
-// 		bool found = false;
-// 		for(int size = vector_size(metadata->nodes), i = 0 ; i < size ; i++){
-// 			MyzNode node = vector_get_at(candidates, i);
-// 			if(strcmp(node->name, token) == 0){
-// 				best_fit = node;
-// 				found = true;
-// 				break;
-// 			}
-// 		}
+	while(token != NULL){
+		if(!S_ISDIR(current->info->mode)){
+			break;
+		}
 
-// 		if(!found){
-// 			*exists = false;
-// 			break;
-// 		}
+		bool found = false;
+		for(int size = vector_size(current->entries), i = 0 ; i < size ; i++){
+			Entry entry = vector_get_at(current->entries, i);
+			MyzNode node = vector_get_at(metadata->nodes, entry->myznode_index);
+			if(compare_names(node, token)){		// if names are equal 
+				current = node;
+				found = true;
+				break;
+			}
+		}
 
-// 		Vector entries = best_fit->entries;
-// 		for(int size = vector_size(entries), i = 0 ; i < size ; i++){
-// 			// ψαξε
-// 		}
-// 		token = strtok(NULL, "/");
-// 	}
-// }
+		if(!found){
+			*exists = false;
+			break;
+		}
+
+		token = strtok(NULL, "/");
+	}
+
+	free(path);
+	return current;
+}

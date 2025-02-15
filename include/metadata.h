@@ -78,7 +78,12 @@ void myznode_destroy(Pointer myz_node);
 
 void read_data(char* path, Metadata metadata, bool compressed, int dir_index);
 
-char* read_file(char* path, int* fsize);
+char* read_file(char* path, long int* fsize);
 
 void entries_insert(MyzNode node, char* name, int myznode_index);
+
+// if exists = false, returns the "closest" parent node (may return . eg the root directory in metadata aka the first node)
+MyzNode metadata_find_node(Metadata metadata, const char* path_to_find, bool* exists);
+
+
 #endif // METADATA_H 
