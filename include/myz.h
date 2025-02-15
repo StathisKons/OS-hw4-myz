@@ -27,6 +27,8 @@ Myz myz_create(const char* file_name, const char* files[], int file_count, bool 
 
 void myz_extract(const char* myz_name, const char* files[], int file_count);
 
-bool append(Metadata metadata, char* path, bool compressed);
+bool append(Myz myz, char* path, bool compressed);
+
+void write_after_append(Myz myz, int old_entries, char* filename);
 
 #endif // MYZ_H

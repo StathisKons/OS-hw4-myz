@@ -323,7 +323,16 @@ MyzNode findPath(char* path, Metadata metadata, bool* file_exists, bool* exists)
     {
         printf("TOKEN %s\n", token);
         fl = true;
-        MyzNode tnode = searchEntries(metadata, node, token);
+        MyzNode tnode ;
+        if(!fl)
+        {
+            fl = true;
+            tnode = searchEntries(metadata, node, token);
+        }
+        else
+        {
+            tnode = searchEntries(metadata, prev, token);
+        }
         if(tnode == NULL && prev == NULL) 
         {
             free(tpath);
@@ -440,10 +449,47 @@ bool compare_names(char* name1, char* name2, bool compressed1, bool compressed2)
     if(strcmp(tname1, tname2) == 0) return true;
     else return false;
 }
+
+
+void write_after_append(Myz myz, int old_entries, char* filename)
+{
+    Metadata metadata = myz->metadata;
+    int fd = open(filename, O_WRONLY);
+    lseek(fd, myz->header->metadata_offset, SEEK_SET);
+
+
+    for(int i = old_entries; i < vector_size(metadata->nodes); i++)
+    {
+        MyzNode node = vector_get_at(metadata->nodes, i);
+        if(S_ISREG(node->info->mode))
+        {
+            if(node->file_data != NULL)
+            {
+                safe_sys_assign(node->data_offset, lseek(fd, 0, SEEK_CUR));
+                safe_sys(write(fd, node->file_data, sizeof(*node->file_data) * node->file_size));
+            }
+        }
+    }
+
+    myz->header->metadata_offset = lseek(fd, 0, SEEK_CUR);
+    int size = vector_size(metadata->nodes);
+    safe_sys(write(fd, &size, sizeof(size)));
+    for(int i = 0; i < vector_size(metadata->nodes); i++)
+    {
+        MyzNode node = vector_get_at(metadata->nodes, i);
+        write_metadata_node(node, fd);
+    }
+
+    safe_sys_assign(myz->header->file_size, lseek(fd, 0, SEEK_CUR));
+    header_write(myz->header, fd);
+    close(fd);
+}
+
     
 
-bool append(Metadata metadata, char* path, bool compressed)
+bool append(Myz myz, char* path, bool compressed)
 {
+    Metadata metadata = myz->metadata;
     char* tpath = strdup(path);
     // MyzNode node = findNode(metadata, path);
     // if(node != NULL)
@@ -457,12 +503,20 @@ bool append(Metadata metadata, char* path, bool compressed)
 
     MyzNode node = findPath(path, metadata, &file_exists, &exists);
     printf("BOOL: %d %d\n", file_exists, exists);
-    if(node == NULL && exists)
+    if(node != NULL)
+    {
+        printf("NODENAME: %s\n", node->name);
+        for(int i = 0; i < vector_size(node->entries); i++)
+        {
+            printf("ENTRY: %s\n", ((Entry)vector_get_at(node->entries, i))->name);
+        }
+    }
+    if(file_exists)
     {
         free(tpath);
         return false;
     }
-    else if(file_exists)
+    else if(node == NULL && exists)
     {
         free(tpath);
         return false;
@@ -535,6 +589,8 @@ bool append(Metadata metadata, char* path, bool compressed)
     }
     
     free(tpath);
+
+
     return true;
     
 }

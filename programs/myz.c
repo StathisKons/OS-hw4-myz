@@ -11,9 +11,11 @@
 // read .myz
 int main(/*int argc, char** argv*/){
     Myz myz = read_myz_file("temp.myz");
+    int old_entries = vector_size(myz->metadata->nodes);
     bool exists;
+    printf("%d old entries\n", old_entries);
     bool file_exists;
-    MyzNode node = findPath("temp/dir1", myz->metadata, &file_exists, &exists);
+    MyzNode node = findPath("temp/dir1/dir2", myz->metadata, &file_exists, &exists);
     if(node != NULL && exists == true && file_exists == false)
     {
         printf("EXISTS: %d\tFILE_EXISTS: %d\tNAME: %s\n", exists, file_exists, node->name);
@@ -27,9 +29,11 @@ int main(/*int argc, char** argv*/){
         printf("File or directory exists\n");
     }
     
-    append(myz->metadata, "temp/dir1/dir2/", false);
+    append(myz, "temp/dir1/dir2/", false);
     print_data(myz->metadata);
-    write_Data(myz->metadata);
+
+    //write_after_append(myz, old_entries, "temp.myz");
+    printf("NEW SIZE: %d\n", vector_size(myz->metadata->nodes));
     return 0;
 }
 
