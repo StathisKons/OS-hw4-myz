@@ -2,9 +2,9 @@
 #include "sys_utils.h"
 #include "vector.h"
 #include "myz.h"
-#include <sys/stat.h>
-#include <assert.h>
-#include <dirent.h>
+#include <sys/stat.h> 
+#include <assert.h> 
+#include <dirent.h> 
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -18,7 +18,7 @@
 void myznode_destroy(Pointer myz_node);
 static bool is_compressed(char* path);
 char* compress_and_read(const char* path, int* fsize);
-static void read_data(char* path, Metadata metadata, bool compressed, int dir_index);
+void read_data(char* path, Metadata metadata, bool compressed, int dir_index);
 
 //Retrieve file permissions in Unix-like format from a Myznode using the stat structure
 //static mode_t getPermissions(MyzNode node)
@@ -176,7 +176,7 @@ char* read_file(char* path, int* fsize){
 }
 
  
-static void read_data(char* path, Metadata metadata, bool compressed, int dir_index)
+void read_data(char* path, Metadata metadata, bool compressed, int dir_index)
 {
 	DIR* directory = opendir(path);
 	if(directory == NULL)
@@ -190,9 +190,11 @@ static void read_data(char* path, Metadata metadata, bool compressed, int dir_in
 	{
 		if(strcmp(entries->d_name, ".") == 0 || strcmp(entries->d_name, "..") == 0) continue;
 		char fpath[1024] = {0};
+		//printf("Entries: %s\n", entries->d_name);
 		sprintf(fpath, "%s/%s", path, entries->d_name);
 		
 		struct stat info;
+		printf("fpath: %s\n", fpath);
 		safe_sys(lstat(fpath, &info));
 
 		char* fdata = NULL;
@@ -428,21 +430,36 @@ void write_Data(Metadata metadata)
 	free(visited);
 }
 
-// void find_rec(char* returnPath, char* Path)
+// MyzNode metadata_find_node(Metadata metadata, const char* path_to_find, bool* exists){
+// 	assert(metadata != NULL && path_to_find != NULL);
 
-// void findPath(char* returnPath, char* Pathtofind, Metadata metadata)
-// {
-// 	char* temp = strdup(Pathtofind);
-// 	char* token = strtok(temp, "/");
+// 	*exists = true;
 
-// 	while(token != NULL)
-// 	{
-		
+// 	char* path = strdup(path_to_find);	// strtok modifies the string
+// 	char* token = strtok(path, "/");
 
+// 	MyzNode best_fit = NULL;
+
+// 	while(token != NULL){
+// 		bool found = false;
+// 		for(int size = vector_size(metadata->nodes), i = 0 ; i < size ; i++){
+// 			MyzNode node = vector_get_at(candidates, i);
+// 			if(strcmp(node->name, token) == 0){
+// 				best_fit = node;
+// 				found = true;
+// 				break;
+// 			}
+// 		}
+
+// 		if(!found){
+// 			*exists = false;
+// 			break;
+// 		}
+
+// 		Vector entries = best_fit->entries;
+// 		for(int size = vector_size(entries), i = 0 ; i < size ; i++){
+// 			// ψαξε
+// 		}
+// 		token = strtok(NULL, "/");
 // 	}
-
-
-
-// 	free(temp);
-
 // }

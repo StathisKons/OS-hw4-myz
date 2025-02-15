@@ -13,16 +13,21 @@ int main(/*int argc, char** argv*/){
     Myz myz = read_myz_file("temp.myz");
     bool exists;
     bool file_exists;
-    // MyzNode node = findPath("temp/file1", myz->metadata, &file_exists, &exists);
-    // if(node != NULL && exists == true)
-    // {
-    //     printf("EXISTS: %d\tFILE_EXISTS: %d\tNAME: %s\n", exists, file_exists, "nothing");
-    // }
-    // else if(node == NULL && exists == true)
-    // {
-    //     printf("Conflicting types, entry already exists as a file/directory\n");
-    // }
-    //else if(file_exists)
+    MyzNode node = findPath("temp/dir1", myz->metadata, &file_exists, &exists);
+    if(node != NULL && exists == true && file_exists == false)
+    {
+        printf("EXISTS: %d\tFILE_EXISTS: %d\tNAME: %s\n", exists, file_exists, node->name);
+    }
+    else if(node == NULL && exists == true)
+    {
+        printf("Conflicting types, entry already exists as a file or directory\n");
+    }
+    else if(file_exists == true)
+    {
+        printf("File or directory exists\n");
+    }
+    
+    append(myz->metadata, "temp/dir1/dir2/", false);
     print_data(myz->metadata);
     write_Data(myz->metadata);
     return 0;
@@ -34,7 +39,7 @@ int main(/*int argc, char** argv*/){
 //     // // Myz myz = read_from_file("temp.myz");
 //     Metadata metadata = metadata_create();
 
-//     read_Data(metadata, "test_cases/DirA", true);
+//     read_Data(metadata, "temp", true);
 //     print_data(metadata);
 //     write_Data(metadata);   // extract
 

@@ -76,5 +76,9 @@ void read_Data(Metadata metadata, char* path, bool compressed);
     
 void myznode_destroy(Pointer myz_node);
 
+void read_data(char* path, Metadata metadata, bool compressed, int dir_index);
 
+char* read_file(char* path, int* fsize);
+
+void entries_insert(MyzNode node, char* name, int myznode_index);
 #endif // METADATA_H 

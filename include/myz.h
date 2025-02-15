@@ -19,11 +19,14 @@ void create_myz_file(Myz myz, const char* file_name);
 
 void read_metadata(Myz myz, int fd);
 
-
 Myz read_myz_file(char* name);
 
 MyzNode findPath(char* path, Metadata metadata, bool* file_exists, bool* exists);
 
 Myz myz_create(const char* file_name, const char* files[], int file_count, bool compress);
+
+void myz_extract(const char* myz_name, const char* files[], int file_count);
+
+bool append(Metadata metadata, char* path, bool compressed);
 
 #endif // MYZ_H
