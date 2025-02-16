@@ -457,6 +457,7 @@ void print_rec(Metadata metadata, MyzNode node, int rec, bool print_metadata)
 	for(int i = 0; i < vector_size(node->entries); i++)
 	{
 		Entry entry = vector_get_at(node->entries, i);
+		//printf("NODE: %s, INDEX GIVEN: %d  METADATA SIZE: %d \n", node->name, entry->myznode_index, vector_size(metadata->nodes));
 		MyzNode tnode = vector_get_at(metadata->nodes, entry->myznode_index);
 		for(int j = 0; j < rec; j++)
 		{
@@ -477,10 +478,7 @@ void print_rec(Metadata metadata, MyzNode node, int rec, bool print_metadata)
 			printf(" Uid(%u), Gid(%u)", tnode->info->uid, tnode->info->gid);
 		}
 		putchar('\n');
-		if(S_ISREG(tnode->info->mode))
-		{
-		}
-		else if(S_ISDIR(tnode->info->mode))
+		if(S_ISDIR(tnode->info->mode))
 		{
 			print_rec(metadata, tnode, rec + 1, print_metadata);
 		}
@@ -490,9 +488,28 @@ void print_rec(Metadata metadata, MyzNode node, int rec, bool print_metadata)
 
 void print(Metadata metadata, bool print_metadata)
 {
+	bool* visited = calloc(vector_size(metadata->nodes), sizeof(bool));
 	MyzNode node = vector_get_at(metadata->nodes, 0);
 	if(node->entries == NULL)
 		return;
 
 	print_rec(metadata, node, 0, print_metadata);
+}
+
+void print_s(Metadata metadata)
+{
+	for(int i = 0; i < vector_size(metadata->nodes); i++)
+	{
+		MyzNode node = vector_get_at(metadata->nodes, i);
+		printf("INDEX: %d\tNAME: %s\n", i, node->name);
+		if(S_ISDIR(node->info->mode))
+		{	
+			if(node ->entries == NULL) continue;
+			for(int j = 0; j < vector_size(node->entries); j++)
+			{
+				Entry entry = vector_get_at(node->entries, j);
+				printf("ENTRY: %s of %s at index %d\n", entry->name, node->name, entry->myznode_index);
+			}
+		}
+	}
 }

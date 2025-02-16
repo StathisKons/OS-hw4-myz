@@ -39,8 +39,6 @@ void myz_extract(Myz myz);
 
 bool append(Myz myz, char* path, bool compressed);
 
-void myz_delete(Myz myz, int file_count, const char* files[]);
-
-off_t myz_delete(Myz myz, const char* filepath, bool* removed);
+void myz_delete(Myz myz, int file_number, char* files[]);
 
 #endif // MYZ_H

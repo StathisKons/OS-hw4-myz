@@ -8,33 +8,39 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include "vector.h"
+
 
 // read .myz
 int main(/*int argc, char** argv*/){
     Myz myz = read_myz_file("temp.myz");
     bool exists;
-    MyzNode parent = metadata_find_parent(myz->metadata, "test_cases/DirA", &exists);
-    printf("PARENTNAME: %s\n", parent->name);
-    MyzNode node = metadata_find_node(myz->metadata, "test_cases/DirA/dir1", &exists);
-    printf("NODENAME: %s\n", node->name);
+    printf("VECTOR SIZE: %d\n", vector_size(myz->metadata->nodes));
     //print_data(myz->metadata);
     //append(myz, "test_cases/DirB", false);
-    char* args[] = {"test_cases/DirA", "takis", "mpampis"};
-    myz_query_for_existence(myz, 3, args);
     //write_after_append(myz, old_entries, "temp.myz");
     
-    print(myz->metadata, true);
+    print(myz->metadata, false);
+    printf("\t\t\t\t BEFORE \t\t\t\t\n");
+    char* files[] = {"temp/dir3"};
+    myz_delete(myz, 1, files);
+    printf("\t\t\t\t AFTER \t\t\t\t\n");
+    print(myz->metadata, false);
+    //print_s(myz->metadata);
+
+    //printf("VECTOR SIZE: %d", vector_size(myz->metadata->nodes));
+    
     return 0;
 }
 
 
-//write .myz
+// //write .myz
 // int main(/*int argc, char** argv*/){
 //     // // Myz myz = read_from_file("temp.myz");
 //     Metadata metadata = metadata_create();
 
-//     read_Data(metadata, "test_cases/DirA", true);
-//     print_data(metadata);
+//     read_Data(metadata, "temp", true);
+//     print(metadata, false);
 
 //     // temp
 //     Myz myz = safe_malloc(sizeof(*myz));
