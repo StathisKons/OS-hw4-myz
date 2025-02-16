@@ -66,10 +66,6 @@ void metadata_insert(Metadata metadata, char* name, struct stat info, bool compr
 
 // void myznode_destroy();
 
-
-void print_data(Metadata metadata);
-
-
 void write_Data(Metadata metadata);
 
 void read_Data(Metadata metadata, char* path, bool compressed);
@@ -84,6 +80,10 @@ void entries_insert(MyzNode node, char* name, int myznode_index);
 
 // if exists = false, returns the "closest" parent node (may return . eg the root directory in metadata aka the first node)
 MyzNode metadata_find_node(Metadata metadata, const char* path_to_find, bool* exists);
+
+MyzNode metadata_find_parent(Metadata metadata, const char* path_to_find, bool* exists);
+
+void print(Metadata metadata, bool print_metadata);
 
 
 #endif // METADATA_H 

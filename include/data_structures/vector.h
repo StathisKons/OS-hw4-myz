@@ -22,4 +22,6 @@ DestroyFunc vector_set_destroy_value(Vector vec, DestroyFunc destroy_value);
 
 void vector_destroy(Vector vec);
 
+void vector_remove_at(Vector vec, int index);
+
 #endif // VECTOR_H

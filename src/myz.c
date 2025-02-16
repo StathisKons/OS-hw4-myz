@@ -258,180 +258,7 @@ Myz read_myz_file(char* name)
     return myz;
 }
 
-static MyzNode searchNode(Metadata metadata, char* name)
-{
-    for(int i = 0; i < vector_size(metadata->nodes); i++)
-    {
-        MyzNode node = vector_get_at(metadata->nodes, i);
-        if(strcmp(node->name, name) == 0)
-            return node;
-    }
-
-    return NULL;
-}
-
-static MyzNode searchEntries(Metadata metadata, MyzNode node,  char* name)
-{
-    if(node->entries != NULL)
-    {
-        for(int i = 0; i < vector_size(node->entries); i++)
-        {
-            Entry entry = vector_get_at(node->entries, i);
-            MyzNode node = vector_get_at(metadata->nodes, entry->myznode_index);
-
-            if(strcmp(node->name, name) == 0)
-            {
-                return node;
-            }
-            else if(node->compressed)
-            {
-                char temp[100];
-                memset(temp, 0, 100);
-                strncpy(temp, node->name, strlen(node->name) - 3);
-                if(strcmp(temp, name) == 0)
-                    return node;
-            }
-        }
-    }
-
-    return NULL;
-}
-
-MyzNode findPath(char* path, Metadata metadata, bool* file_exists, bool* exists)
-{   
-    MyzNode prev = NULL;
-    *exists = true;
-    *file_exists = false;
-    bool fl = false;
-    char* tpath = strdup(path);
-    char* token = strtok(tpath, "/");
-    struct stat info;
-
-    char curpath[1000];
-    memset(curpath, 0, 1000);
-    strcat(curpath, token);
-
-    MyzNode node = searchNode(metadata, token);
-    if(node == NULL)
-    {
-        free(tpath);
-        *exists = false;
-        return NULL;
-    }
-    
-    while((token = strtok(NULL, "/")) != NULL)
-    {
-        printf("TOKEN %s\n", token);
-        fl = true;
-        MyzNode tnode ;
-        if(!fl)
-        {
-            printf("HERE2\n");
-            fl = true;
-            tnode = searchEntries(metadata, node, token);
-        }
-        else
-        {
-            printf("Here3\n");
-            tnode = searchEntries(metadata, prev, token);
-        }
-        if(tnode == NULL && prev == NULL) 
-        {
-            free(tpath);
-            return node;
-        }
-        else if(tnode == NULL)
-        {
-            free(tpath);
-            return prev;
-        }
-        strcat(curpath, "/");
-        strcat(curpath, token);
-        printf("CURPATH: %s\n", curpath);
-        if(strcmp(curpath, path) == 0)
-        {
-            free(tpath);
-            *file_exists = true;
-            return NULL;
-        }
-       
-        // Just remove the last / from the path
-        strcat(curpath, "/");
-        if(strcmp(curpath, path) == 0)
-        {
-            free(tpath);
-            *file_exists = true;
-            return NULL;
-        }
-
-
-
-        lstat(curpath, &info);
-        if(tnode->info->mode != info.st_mode) // Conflicting file types
-        {
-            free(tpath);
-            *file_exists = true;
-            return NULL;
-        }
-
-        prev = tnode;
-    }
-    if(!fl && node != NULL)
-    {
-        if(strcmp(curpath, path) == 0)
-        {
-            *file_exists = true;
-            free(tpath);
-            return NULL;
-        }
-        strcat(curpath, "/");
-        if(strcmp(curpath, path) == 0)
-        {
-            *file_exists = true;
-            free(tpath);
-            return NULL;
-        }
-        free(tpath);
-        return node;
-    }
-
-    *exists = false;
-    free(tpath);
-    return NULL;
-}
-
-
-// void append(Metadata metadata)
-// {
-//     struct stat info;
-//     lstat();
-// }
-
-// // TODO read Data from files
-// Myz myz_create(const char* file_name, const char* files[], int file_count, bool compress){
-//     Myz myz = safe_malloc(sizeof(*myz));
-//     myz->header = safe_malloc(sizeof(*myz->header));
-//     myz->metadata = metadata_create();
-
-//     // read_Data(myz->metadata, )   // εχει θεματα...
-
-//     create_myz_file(myz, file_name);
-
-//     return myz;
-// }
-
-
-// void myz_extract(const char* myz_name, const char* files[], int file_count){
-//     Myz myz = read_myz_file(myz_name);
-//     Metadata metadata = myz->metadata;
-
-//     for(int i = 0 ; i < file_count ; i++){
-//         bool file_exists = false;
-        
-//     }
-// }
-
-
+// returns true if equal false otherwise
 bool compare_names(MyzNode node, char* name)
 {
     char tname1[256] = {0};
@@ -572,13 +399,11 @@ void write_after_append(Myz myz, int old_entries, char* filename)
 }
 
 
-void myz_query_for_existence(const Myz myz, int file_count, const char* files[]){
+void myz_query_for_existence(const Myz myz, int file_count, char* files[]){
     for(int i = 0 ; i < file_count ; i++){
         bool exists;
         metadata_find_node(myz->metadata, files[i], &exists);
-        if(exists){
-            printf("%s %s\n", files[i], exists ? "exists" : "does not exist");
-        }
+        printf("%s : %s\n", files[i], exists ? "exists" : "does not exist");
     }
 }
 
@@ -594,4 +419,137 @@ void myz_query_for_existence(const Myz myz, int file_count, const char* files[])
 
 void myz_extract(Myz myz){
     write_Data(myz->metadata);
+}
+
+static int getIndex(MyzNode parent, MyzNode child)
+{
+    for(int i = 0; i < vector_size(parent->entries); i++)
+    {
+        Entry  entry = vector_get_at(parent->entries, i);
+        if(strcmp(child->name, entry->name))
+            return i;
+    }
+
+}
+
+static void setIndexes(Metadata metadata, int old, int new)
+{
+    for(int i = 1; i < metadata->nodes; i++)
+    {
+        MyzNode node = vector_get_at(metadata->nodes, i);
+        if(node->entries == NULL) continue;
+
+        for(int i = 0; i < vector_size(node->entries); i++)
+        {
+            Entry entry = vector_get_at(node->entries, i);
+            if(entry->myznode_index  == old)
+            {
+                entry->myznode_index = new;
+                return;
+            }
+        }
+    }
+}
+
+static void remove_from_entry(MyzNode node, int deleted_index)
+{
+    for(int i = 0; i < vector_size(node->entries); i++)
+    {
+        Entry entry = vector_get_at(node->entries, i);
+        if(entry->myznode_index == deleted_index)
+        {
+            vector_remove_at(node->entries, deleted_index);
+            if(vector_size(node->entries) == 0)
+            {
+                vector_destroy(node->entries);
+                node->entries = NULL;
+            }
+            return;
+        }
+    }
+
+}
+
+static off_t delete_dir(Metadata metadata, MyzNode node)
+{
+    if(node->entries == NULL)
+    {
+        return;
+    }
+
+    for(int i = 0; i < vector_size(node->entries); i++)
+    {
+        Entry entry = vector_get_at(node->entries, i);
+        MyzNode tnode = vector_get_at(metadata->nodes, entry->myznode_index);
+
+        if(!S_ISDIR(tnode->info->mode))
+        {
+            int old = vector_size(metadata->nodes) - 1;
+            int new = entry->myznode_index;
+            vector_remove_at(metadata->nodes, entry->myznode_index);
+            setIndexes(metadata, old, new);
+        }
+        else if(S_ISDIR(tnode->info->mode))
+        {
+            int old = vector_size(metadata->nodes) - 1;
+            int new = entry->myznode_index;
+            delete_dir(metadata, tnode);
+            vector_remove_at(metadata->nodes, entry->myznode_index);
+            setIndexes(metadata, old, new);
+        }
+    }
+}
+
+off_t myz_delete(Myz myz, const char* filepath, bool* removed){
+    bool exists;
+    int offset;
+    Metadata metadata = myz->metadata;
+    MyzNode node = metadata_find_node(myz->metadata, filepath, &exists);
+    if(!exists)
+    {
+        *removed = false;
+        return 0;
+    }
+
+    MyzNode parent = metadata_find_parent(metadata, filepath, &exists);
+    int index = getIndex(parent, node);
+    int swapped_ind = vector_size(metadata->nodes) - 1;
+    offset = node->data_offset;
+    if(!S_ISDIR(node->info->mode))
+    {   
+        vector_remove_at(metadata->nodes, index);
+        remove_from_entry(parent, index);
+        setIndexes(metadata, swapped_ind, index);
+        return node->data_offset;
+    }
+
+    if(S_ISDIR(node->info->mode))
+    {
+        delete_dir(metadata, node);
+        remove_from_entry(parent, index);
+        vector_remove_at(metadata->nodes, index);
+        setIndexes(metadata, swapped_ind, index);
+    }
+
+    return 0;
+}
+
+
+
+
+
+Myz myz_create(const char* file_name, const char* files[], int file_count, bool compress){
+    
+    Myz myz = safe_malloc(sizeof(*myz));
+    myz->header = safe_malloc(sizeof(*myz->header));
+    myz->metadata = metadata_create();
+
+
+    // Myz myz = safe_malloc(sizeof(*myz));
+    // myz->metadata = metadata;
+    // myz->header = safe_malloc(sizeof(*myz->header));
+
+
+
+    create_myz_file(myz, file_name);
 }

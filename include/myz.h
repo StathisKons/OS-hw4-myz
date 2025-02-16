@@ -33,10 +33,14 @@ void write_after_append(Myz myz, int old_entries, char* filename);
 
 bool compare_names(MyzNode node, char* name);
 
-void myz_query_for_existence(const Myz myz, int file_count, const char* files[]);
+void myz_query_for_existence(const Myz myz, int file_count, char* files[]);
 
 void myz_extract(Myz myz);
 
 bool append(Myz myz, char* path, bool compressed);
+
+void myz_delete(Myz myz, int file_count, const char* files[]);
+
+off_t myz_delete(Myz myz, const char* filepath, bool* removed);
 
 #endif // MYZ_H

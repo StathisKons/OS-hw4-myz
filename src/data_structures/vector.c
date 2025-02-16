@@ -98,3 +98,17 @@ void vector_destroy(Vector vec){
     free(vec->array);
     free(vec);
 }
+
+// like a boss
+static void swap(Pointer *a, Pointer *b){
+    Pointer tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+void vector_remove_at(Vector vec, int index){
+    assert(vec != NULL && index >= 0 && index < vec->size);
+
+    swap(&vec->array[index].value, &vec->array[vec->size - 1].value);   // swap with last element
+    vector_remove_last(vec);
+}

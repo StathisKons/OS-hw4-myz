@@ -229,56 +229,6 @@ void read_data(char* path, Metadata metadata, bool compressed, int dir_index)
 	closedir(directory);
 }
 
-static void print_directory(Metadata metadata, MyzNode node, char* path, bool* visited)
-{
-	if(node->entries == NULL)
-	{
-		printf("%s/\n", path);
-		return;
-	}
-	for(int i = 0; i < vector_size(node->entries); i++)
-	{
-		Entry entry = vector_get_at(node->entries, i);
-		visited[entry->myznode_index] = 1;
-
-		MyzNode tnode = vector_get_at(metadata->nodes, entry->myznode_index);
-
-		if(S_ISDIR(tnode->info->mode))
-		{
-			char npath[1024] = {0};
-			sprintf(npath, "%s/%s", path, tnode->name);
-			print_directory(metadata, tnode, npath, visited);
-		}
-		else if(S_ISREG(tnode->info->mode))
-		{
-			printf("%s/%s\n", path, tnode->name);
-		}
-	} 
-}
-
-void print_data(Metadata metadata)
-{
-	bool* visited = calloc(vector_size(metadata->nodes), sizeof(bool));
-
-	for(int i = 0; i < vector_size(metadata->nodes); i++)
-	{
-		MyzNode node = vector_get_at(metadata->nodes, i);
-		if(visited[i]) continue;
-		visited[i] = true;
-		if(S_ISDIR(node->info->mode))
-		{
-			char path[1000] = {0};
-			strcpy(path, node->name);
-			print_directory(metadata, node, path, visited);
-		}
-		else if(S_ISREG(node->info->mode))
-		{
-			printf("%s\n", node->name);
-		}
-	}
-
-	free(visited);
-}
 
 static bool is_compressed(char* path)
 {
@@ -447,7 +397,6 @@ MyzNode metadata_find_node(Metadata metadata, const char* path_to_find, bool* ex
 
 		bool found = false;
 		for(int size = vector_size(current->entries), i = 0 ; i < size ; i++){
-			printf("SIZE: %d\n", i);
 			Entry entry = vector_get_at(current->entries, i);
 			MyzNode node = vector_get_at(metadata->nodes, entry->myznode_index);
 			if(compare_names(node, token)){		// if names are equal 
@@ -467,4 +416,83 @@ MyzNode metadata_find_node(Metadata metadata, const char* path_to_find, bool* ex
 
 	free(path);
 	return current;
+}
+
+
+MyzNode metadata_find_parent(Metadata metadata, const char* path_to_find, bool* exists){
+	assert(metadata != NULL && path_to_find != NULL);
+
+	*exists = false;
+
+	for(int i = strlen(path_to_find) - 2 ; i >= 0 ; i--){
+		if(path_to_find[i] == '/'){
+			char* parent_path = strndup(path_to_find, i);
+			MyzNode parent = metadata_find_node(metadata, parent_path, exists);
+			free(parent_path);
+			return parent;
+		}
+	}
+
+	return vector_get_at(metadata->nodes, 0);
+}
+
+static void print_file_permissions(mode_t mode){
+	printf( (S_ISDIR(mode))  ? "d" : "-");
+    printf( (mode & S_IRUSR) ? "r" : "-");
+    printf( (mode & S_IWUSR) ? "w" : "-");
+    printf( (mode & S_IXUSR) ? "x" : "-");
+    printf( (mode & S_IRGRP) ? "r" : "-");
+    printf( (mode & S_IWGRP) ? "w" : "-");
+    printf( (mode & S_IXGRP) ? "x" : "-");
+    printf( (mode & S_IROTH) ? "r" : "-");
+    printf( (mode & S_IWOTH) ? "w" : "-");
+    printf( (mode & S_IXOTH) ? "x" : "-");
+}
+
+void print_rec(Metadata metadata, MyzNode node, int rec, bool print_metadata)
+{
+	if(node->entries == NULL)
+		return;
+
+	for(int i = 0; i < vector_size(node->entries); i++)
+	{
+		Entry entry = vector_get_at(node->entries, i);
+		MyzNode tnode = vector_get_at(metadata->nodes, entry->myznode_index);
+		for(int j = 0; j < rec; j++)
+		{
+			printf(" ");
+		}
+		printf("|");
+
+
+		
+		for(int j = 0; j < rec; j++)
+		{
+			printf("-");
+		}
+		printf(" %s\t", tnode->name);
+		if(print_metadata)
+		{
+			print_file_permissions(tnode->info->mode);
+			printf(" Uid(%u), Gid(%u)", tnode->info->uid, tnode->info->gid);
+		}
+		putchar('\n');
+		if(S_ISREG(tnode->info->mode))
+		{
+		}
+		else if(S_ISDIR(tnode->info->mode))
+		{
+			print_rec(metadata, tnode, rec + 1, print_metadata);
+		}
+	}
+
+}
+
+void print(Metadata metadata, bool print_metadata)
+{
+	MyzNode node = vector_get_at(metadata->nodes, 0);
+	if(node->entries == NULL)
+		return;
+
+	print_rec(metadata, node, 0, print_metadata);
 }
