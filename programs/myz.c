@@ -16,21 +16,22 @@ int main(/*int argc, char** argv*/){
     bool exists;
     printf("%d old entries\n", old_entries);
     metadata_find_node(myz->metadata, "temp/dir2/file4", &exists);
-    append(myz, "temp/dir3", false);
+    print_data(myz->metadata);
+    append(myz, "test_cases/DirB", false);
     print_data(myz->metadata);
 
     //write_after_append(myz, old_entries, "temp.myz");
-    //printf("NEW SIZE: %d\n", vector_size(myz->metadata->nodes));
+    printf("NEW SIZE: %d\n", vector_size(myz->metadata->nodes));
     return 0;
 }
 
 
-// //write .myz
+//write .myz
 // int main(/*int argc, char** argv*/){
 //     // // Myz myz = read_from_file("temp.myz");
 //     Metadata metadata = metadata_create();
 
-//     read_Data(metadata, "temp", true);
+//     read_Data(metadata, "test_cases/DirA", true);
 //     print_data(metadata);
 
 //     // temp
@@ -39,7 +40,7 @@ int main(/*int argc, char** argv*/){
 //     myz->header = safe_malloc(sizeof(*myz->header));
 
 //     create_myz_file(myz, "temp.myz");
-
+    
 //     return 0;
 // }
 

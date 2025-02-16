@@ -89,11 +89,10 @@ void read_Data(Metadata metadata, char* path, bool compressed)
 	char* delims = "/";
 	token = strtok(tpath, delims);
 	info.st_mode =  __S_IFDIR;
-	metadata_insert(metadata, ".", info, compressed, -1, NULL);
+	metadata_insert(metadata, ".", info, compressed, 0, NULL);
 	
 	MyzNode prev = vector_get_at(metadata->nodes, 0);
 	MyzNode cur;
-	bool fl = true;
 	do {
 		strcat(relpath, token);
 		strcat(relpath, "/");
@@ -103,11 +102,7 @@ void read_Data(Metadata metadata, char* path, bool compressed)
 			break;
 		}
 		metadata_insert(metadata, token, info, false, 0, NULL);
-		if(fl)
-		{
-			cur = vector_get_at(metadata->nodes, 0); 
-		}
-
+		cur = vector_get_at(metadata->nodes, vector_size(metadata->nodes) - 1);
 		if(prev != NULL)
 		{
 			entries_insert(prev, token, vector_size(metadata->nodes) - 1);
@@ -452,6 +447,7 @@ MyzNode metadata_find_node(Metadata metadata, const char* path_to_find, bool* ex
 
 		bool found = false;
 		for(int size = vector_size(current->entries), i = 0 ; i < size ; i++){
+			printf("SIZE: %d\n", i);
 			Entry entry = vector_get_at(current->entries, i);
 			MyzNode node = vector_get_at(metadata->nodes, entry->myznode_index);
 			if(compare_names(node, token)){		// if names are equal 
