@@ -68,6 +68,7 @@ void metadata_destroy(Metadata metadata)
 
 void read_Data(Metadata metadata, const char* path, bool compressed)
 {
+	bool fl = false;
 	struct stat info;
 	char* tpath = strdup(path);
 	char relpath[1024] = {0};
@@ -82,12 +83,13 @@ void read_Data(Metadata metadata, const char* path, bool compressed)
 	MyzNode cur;
 	do {
 		strcat(relpath, token);
-		strcat(relpath, "/");
 		safe_sys(lstat(relpath, &info));
 		if(!S_ISDIR(info.st_mode))
 		{
+			fl = true;
 			break;
 		}
+		strcat(relpath, "/");
 		metadata_insert(metadata, token, info, false, 0, NULL);
 		cur = vector_get_at(metadata->nodes, vector_size(metadata->nodes) - 1);
 		if(prev != NULL)
@@ -96,8 +98,39 @@ void read_Data(Metadata metadata, const char* path, bool compressed)
 		}
 		prev = cur;
 	} while((token = strtok(NULL, delims)));
+	if(fl)
+	{
+		char* file_data = NULL;
+		long int fsize = 0;
+		char name[256] = {0};
+		
+		if(S_ISLNK(info.st_mode))
+		{
+			file_data = safe_malloc(sizeof(*file_data) * (info.st_size + 1));
+			fsize = info.st_size + 1;
+			readlink(relpath, file_data, fsize);
+			file_data[info.st_size] = '\0';
+			strcpy(name, token);
+		}
+		if(S_ISREG(info.st_mode))
+		{
+			strcpy(name, token);
+			if(compressed && !is_compressed(relpath))
+			{
+				file_data = compress_and_read(relpath, &fsize);
+				strcat(name, ".gz");
+			}
+			else
+			{
+				file_data = read_file(relpath, &fsize);
+			}
+		}
+		metadata_insert(metadata, token, info, compressed, fsize, file_data);
+		entries_insert(prev, token, vector_size(metadata->nodes) - 1);
+	}
 	free(tpath);
-	read_data(path, metadata, compressed, vector_size(metadata->nodes) - 1);
+	if(!fl)
+		read_data(path, metadata, compressed, vector_size(metadata->nodes) - 1);
 }
 
 void metadata_insert_node(Metadata metadata, MyzNode node){

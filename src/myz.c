@@ -332,7 +332,6 @@ bool append(Myz myz, const char* path, bool compressed)
         strcat(curpath, token);
         if(strcmp(node->name, token) == 0)
         {
-            printf("BREAK\n");
             break;
         }
         strcat(curpath, "/");
@@ -574,7 +573,6 @@ void myz_append(const char* file_name, int file_count, const char* files[], bool
             exit(EXIT_FAILURE);
         }
         // if doesnt exist
-        safe_sys(close(fd));
         myz_create(file_name, file_count, files, compress);
         return ;
     }
