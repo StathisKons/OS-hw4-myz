@@ -1,8 +1,5 @@
 #include "header.h"
-#include <unistd.h>
-#include <sys/types.h>
 #include "sys_utils.h"
-#include <string.h>
 
 static void write_magic_number(int fd);
 static void write_file_size(int fd, int64_t new_size);

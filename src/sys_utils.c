@@ -35,7 +35,7 @@ ssize_t guaranteed_read(int fd, void *buffer, size_t bytes_to_read_){
                 continue;
             }
             perror("Read failed");
-            exit(EXIT_FAILURE); // TODO αντι για exit μπορω return -1 και να αφησω τον parent να κανει handle
+            exit(EXIT_FAILURE); // ? αντι για exit μπορω return -1 και να αφησω τον parent να κανει handle
         }
         if(r == 0){
             return bytes_read;

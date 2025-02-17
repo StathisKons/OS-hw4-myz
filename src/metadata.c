@@ -1,25 +1,15 @@
 #include "metadata.h"
 #include "sys_utils.h"
-#include "vector.h"
 #include "myz.h"
-#include <sys/stat.h> 
 #include <assert.h> 
 #include <dirent.h> 
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <wait.h>
-#include "header.h"
 
 
 static void write_links(Metadata metadata);
-void myznode_destroy(Pointer myz_node);
 static bool is_compressed(char* path);
-char* compress_and_read(const char* path, long int* fsize);
-void read_data(const char* path, Metadata metadata, bool compressed, int dir_index);
+static char* compress_and_read(const char* path, long int* fsize);
 
 //retrieve file permissions in Unix-like format from a Myznode using the stat structure
 static mode_t getPermissions(MyzNode node)

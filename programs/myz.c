@@ -1,14 +1,8 @@
-#include "metadata.h"
 #include "myz.h"
-#include "sys_utils.h"
 #include "args.h"
-#include <unistd.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 
-#include "vector.h"
 
 int main(int argc, char** argv){
     Arguments args = get_arguments(argc, argv);
@@ -21,9 +15,13 @@ int main(int argc, char** argv){
             myz_create(args.archive_file, args.num_files, (const char**)args.files, args.use_compression);
             break;
         case APPEND:
+            if(args.num_files < 1){
+                fprintf(stderr, "No files to archive\n");
+                exit(EXIT_FAILURE);
+            }
             myz_append(args.archive_file, args.num_files, (const char**)args.files, args.use_compression);
             break;
-        case EXTRACT:{
+        case EXTRACT:{      // create an inner scope to avoid redefinition of variable myz
             Myz myz = read_myz_file(args.archive_file);
             myz_extract(myz);
             myz_destroy(myz);
@@ -54,7 +52,7 @@ int main(int argc, char** argv){
             break;
         }
         default:
-            fprintf(stderr, "Wtf, should have exited already\n");
+            fprintf(stderr, "Wtf, should have exited already\n");       // TODO ......
             exit(EXIT_FAILURE);
     }
 }
