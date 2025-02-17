@@ -15,10 +15,11 @@
 #include "header.h"
 
 
+static void write_links(Metadata metadata);
 void myznode_destroy(Pointer myz_node);
 static bool is_compressed(char* path);
 char* compress_and_read(const char* path, long int* fsize);
-void read_data(char* path, Metadata metadata, bool compressed, int dir_index);
+void read_data(const char* path, Metadata metadata, bool compressed, int dir_index);
 
 //retrieve file permissions in Unix-like format from a Myznode using the stat structure
 static mode_t getPermissions(MyzNode node)
@@ -65,7 +66,7 @@ void metadata_destroy(Metadata metadata)
 	free(metadata);
 }
 
-void read_Data(Metadata metadata, char* path, bool compressed)
+void read_Data(Metadata metadata, const char* path, bool compressed)
 {
 	struct stat info;
 	char* tpath = strdup(path);
@@ -74,7 +75,7 @@ void read_Data(Metadata metadata, char* path, bool compressed)
 	char* token;
 	char* delims = "/";
 	token = strtok(tpath, delims);
-	info.st_mode =  __S_IFDIR;
+	lstat(".", &info);
 	metadata_insert(metadata, ".", info, compressed, 0, NULL);
 	
 	MyzNode prev = vector_get_at(metadata->nodes, 0);
@@ -164,7 +165,7 @@ char* read_file(char* path, long int* fsize){
 }
 
  
-void read_data(char* path, Metadata metadata, bool compressed, int dir_index)
+void read_data(const char* path, Metadata metadata, bool compressed, int dir_index)
 {
 	DIR* directory = opendir(path);
 	if(directory == NULL)
@@ -190,6 +191,14 @@ void read_data(char* path, Metadata metadata, bool compressed, int dir_index)
 		char fname[259] = {0};
 		strcpy(fname, entries->d_name);
 		
+		if((S_ISLNK(info.st_mode)))
+		{
+			fdata = safe_malloc(sizeof(*fdata) * (info.st_size + 1));
+			fsize = info.st_size + 1;
+			readlink(fpath, fdata, sizeof(*fdata)* info.st_size);
+			fdata[info.st_size] = '\0';
+		}		
+
 		if(S_ISREG(info.st_mode))
 		{
 			if(compressed && !is_compressed(fpath))
@@ -223,7 +232,7 @@ void read_data(char* path, Metadata metadata, bool compressed, int dir_index)
 static bool is_compressed(char* path)
 {
 	int fd = open(path, O_RDONLY);
-	unsigned char buff[2];
+	unsigned char buff[2] = {0};
 	guaranteed_read(fd, buff, sizeof(buff));
 
 	close(fd);
@@ -309,9 +318,8 @@ static void write_rec(Metadata metadata, MyzNode node, char* path, bool* visited
 		{
 			printf("%s\n", tnode->name);
 			int fd;
-			printf("PATH: %s\n", tpath);
 			safe_sys_assign(fd, open(tpath, O_CREAT | O_TRUNC | O_WRONLY, getPermissions(tnode)));
-			if(tnode->file_data != NULL){						// !!! CHECK GIANNH, to ebala twra
+			if(tnode->file_data != NULL){						
 				safe_sys(write(fd, tnode->file_data, tnode->file_size));
 			}
 			close(fd);
@@ -368,6 +376,47 @@ void write_Data(Metadata metadata)
 
 
 	free(visited);
+
+	write_links(metadata);
+}
+
+static void write_l(Metadata metadata, MyzNode node, char* path, bool* visited)
+{
+	if(node->entries == NULL)
+		return;
+
+	for(int i = 0; i < vector_size(node->entries); i++)
+	{
+		char tpath[1300] = {0};
+		Entry entry = vector_get_at(node->entries, i);
+		if(visited[entry->myznode_index]) continue;
+		visited[entry->myznode_index] = true;
+		MyzNode tnode = vector_get_at(metadata->nodes, entry->myznode_index);
+		if(S_ISDIR(tnode->info->mode))
+		{
+			strcat(tpath, path);
+			strcat(tpath, "/");
+			strcat(tpath, tnode->name);
+			write_l(metadata, tnode, tpath, visited);
+		}
+		else if(S_ISLNK(tnode->info->mode))
+		{
+			printf("Here\n\n");
+			strcat(tpath, path);
+			strcat(tpath, "/");
+			strcat(tpath, tnode->name);
+// printf("\t\t %s\n", tnode->name);
+			assert(tnode->file_data != NULL);
+			printf("%s\n", tnode->file_data);
+			symlink(tnode->file_data, tpath);
+		}
+	}
+}
+
+static void write_links(Metadata metadata)
+{
+	bool* visited = calloc(vector_size(metadata->nodes), sizeof(*visited));
+	write_l(metadata, vector_get_at(metadata->nodes, 0), ".", visited);
 }
 
 MyzNode metadata_find_node(Metadata metadata, const char* path_to_find, bool* exists){
@@ -478,7 +527,7 @@ void print_rec(Metadata metadata, MyzNode node, int rec, bool print_metadata)
 
 void print(Metadata metadata, bool print_metadata)
 {
-	bool* visited = calloc(vector_size(metadata->nodes), sizeof(bool));
+	// bool* visited = calloc(vector_size(metadata->nodes), sizeof(bool));
 	MyzNode node = vector_get_at(metadata->nodes, 0);
 	if(node->entries == NULL)
 		return;

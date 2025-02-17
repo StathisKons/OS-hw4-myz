@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <unistd.h>
-
+#include <errno.h>
 
 static void write_after_delete(Myz myz, const char* file_name, off_t min_offset);
 
@@ -43,7 +43,7 @@ static void write_metadata_node(MyzNode node, int fd)
     write_name(fd, node->name);
     write_stat(fd, node);
     safe_sys(write(fd, &node->compressed, sizeof(node->compressed)));
-    if(S_ISREG(node->info->mode))
+    if(S_ISREG(node->info->mode) || S_ISLNK(node->info->mode))
     {
         safe_sys(write(fd, &node->data_offset, sizeof(node->data_offset)));
         safe_sys(write(fd, &node->file_size, sizeof(node->file_size)));
@@ -60,9 +60,7 @@ void create_myz_file(Myz myz, const char* file_name)
     int fd;
     safe_sys_assign(fd, open(file_name, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR));
 
-
-    header_write(myz->header, fd);
-    safe_sys(lseek(fd, header_get_data_offset(), SEEK_SET));        // for safety, remove
+    safe_sys(lseek(fd, header_get_data_offset(), SEEK_SET));
 
     Metadata metadata = myz->metadata;
     
@@ -143,7 +141,7 @@ static MyzNode read_node(int fd)
     guaranteed_read(fd, node->name, name_length);
     read_stat(fd, node);
     guaranteed_read(fd, &node->compressed, sizeof(node->compressed));
-    if(S_ISREG(node->info->mode))
+    if(S_ISREG(node->info->mode) || S_ISLNK(node->info->mode))
     {
         guaranteed_read(fd, &node->data_offset, sizeof(node->data_offset));
         guaranteed_read(fd, &node->file_size, sizeof(node->file_size));
@@ -179,7 +177,7 @@ static Header read_header(int fd)
     return header;
 }
 
-Myz read_myz_file(char* name)
+Myz read_myz_file(const char* name)
 {
     Myz myz = safe_malloc(sizeof(*myz));
     int fd;
@@ -250,7 +248,7 @@ void write_after_append(Myz myz, int old_entries, char* filename)
     for(int i = old_entries; i < vector_size(metadata->nodes); i++)
     {
         MyzNode node = vector_get_at(metadata->nodes, i);
-        if(S_ISREG(node->info->mode))
+        if(S_ISREG(node->info->mode) || S_ISLNK(node->info->mode))
         {
             if(node->file_data != NULL)
             {
@@ -276,7 +274,7 @@ void write_after_append(Myz myz, int old_entries, char* filename)
 
 
 
-bool append(Myz myz, char* path, bool compressed)
+bool append(Myz myz, const char* path, bool compressed)
 {
     Metadata metadata = myz->metadata;
     char* tpath = strdup(path);
@@ -309,6 +307,13 @@ bool append(Myz myz, char* path, bool compressed)
                 metadata_insert(metadata, token, info, compressed, file_size, file_data);
                 free(tpath);
                 return true;
+            }
+            else if(S_ISLNK(info.st_mode))
+            {
+                long int file_size = info.st_size + 1;
+                char* file_data = safe_malloc(sizeof(*file_data) * (info.st_size + 1));
+                readlink(curpath, file_data, sizeof(*file_data) * file_size);
+                file_data[info.st_size] = '\0';
             }
 
             metadata_insert(metadata, token, info, compressed, 0, NULL);
@@ -485,7 +490,7 @@ static off_t delete_node(Metadata metadata, char* file, bool* exists){
     return offset;    // ummm  ftiakse
 }
 
-void myz_delete(Myz myz, int file_number, char*file_name,  char* files[]){
+void myz_delete(Myz myz, char* file_name, int file_number, char* files[]){
     off_t minimum_offset = LONG_MAX;
     for(int i = 0 ; i < file_number ; i++){
         bool removed;
@@ -496,7 +501,6 @@ void myz_delete(Myz myz, int file_number, char*file_name,  char* files[]){
         }
 
         minimum_offset = minimum_offset < data_offset ? minimum_offset : data_offset;
-        // printf("\t\t after deleting %s current minimum offset %ld\n", files[i], minimum_offset);
     }
 
     write_after_delete(myz, file_name, minimum_offset);
@@ -519,13 +523,10 @@ static void write_after_delete(Myz myz, const char* file_name, off_t min_offset)
     {
         MyzNode node = vector_get_at(metadata->nodes, i);
 
-        if(node->file_data != NULL)
+        if(node->file_data != NULL && node->data_offset > min_offset)
         {
-            if(node->data_offset > min_offset)
-            {
-                safe_sys_assign(node->data_offset, lseek(fd, 0, SEEK_CUR));
-                safe_sys(write(fd, node->file_data, node->file_size));
-            }
+            safe_sys_assign(node->data_offset, lseek(fd, 0, SEEK_CUR));
+            safe_sys(write(fd, node->file_data, node->file_size));
         }
     }
 
@@ -546,4 +547,54 @@ static void write_after_delete(Myz myz, const char* file_name, off_t min_offset)
 
 
     safe_sys(close(fd));
+}
+
+
+void myz_create(const char* file_name, int file_count, const char* files[], bool compress){
+    assert(file_count > 0);
+    Metadata metadata = metadata_create();
+
+    Myz myz = safe_malloc(sizeof(*myz));
+    myz->metadata = metadata_create();
+    myz->header = safe_malloc(sizeof(*myz->header));
+
+    read_Data(metadata, files[0], compress);
+
+    for(int i = 1 ; i < file_count ; i++){
+        append(myz, files[i], compress);
+    }
+
+    create_myz_file(myz, file_name);
+}
+
+
+void myz_append(const char* file_name, int file_count, const char* files[], bool compress){ 
+    int fd = open(file_name, O_RDWR);
+    if (fd < 0) {
+        if(errno != ENOENT) {
+            perror("open@"__FILE__":"to_string(__LINE__));
+            exit(EXIT_FAILURE);
+        }
+        // if doesnt exist
+        safe_sys(close(fd));
+        myz_create(file_name, file_count, files, compress);
+        return ;
+    }
+    safe_sys(close(fd));
+
+    Myz myz = read_myz_file(file_name);
+    for(int i = 0 ; i < file_count ; i++){
+        int fd = open(files[i], O_RDONLY);
+        if(fd < 0){
+            fprintf(stderr, "Could not open file %s: %s\n", files[i], strerror(errno));
+            continue;
+        }
+         
+        bool appended = append(myz, files[i], compress);
+        if(!appended){
+            printf("%s already exists\n", files[i]);
+        }
+    }
+
+    create_myz_file(myz, file_name);
 }

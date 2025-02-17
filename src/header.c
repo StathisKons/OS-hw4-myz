@@ -55,6 +55,7 @@ static void write_metadata_offset(int fd, off_t new_offset)
 {
     safe_sys(lseek(fd, header_get_metadata_offset_offset(), SEEK_SET));
     char buffer[sizeof(new_offset)];
+    memset(buffer, 0, sizeof(new_offset));
     memcpy(buffer, &new_offset, sizeof(new_offset));
     safe_sys(write(fd, buffer, sizeof(buffer)));
 }

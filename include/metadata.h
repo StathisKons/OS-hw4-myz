@@ -68,11 +68,11 @@ void metadata_insert(Metadata metadata, char* name, struct stat info, bool compr
 
 void write_Data(Metadata metadata);
 
-void read_Data(Metadata metadata, char* path, bool compressed);
+void read_Data(Metadata metadata, const char* path, bool compressed);
     
 void myznode_destroy(Pointer myz_node);
 
-void read_data(char* path, Metadata metadata, bool compressed, int dir_index);
+void read_data(const char* path, Metadata metadata, bool compressed, int dir_index);
 
 char* read_file(char* path, long int* fsize);
 
