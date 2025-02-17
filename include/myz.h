@@ -39,4 +39,7 @@ bool append(Myz myz, const char* path, bool compressed);
 
 void myz_delete(Myz myz, char* file_name, int file_number, char* files[]);
 
+void myz_destroy(Myz myz);
+
+
 #endif // MYZ_H

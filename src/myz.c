@@ -449,12 +449,12 @@ static off_t delete_dir(Metadata metadata, MyzNode node){
         MyzNode child = vector_get_at(metadata->nodes, entry->myznode_index);
         if(S_ISDIR(child->info->mode)){
             off_t offset = delete_dir(metadata, child);
-            min_offset = min_offset < offset ? min_offset : offset;
+            if(offset != -1) min_offset = min_offset < offset ? min_offset : offset;
             delete_non_dir(metadata, child, node);      // this is deleting the empty directory
         }
         else {
             off_t offset = delete_non_dir(metadata, child, node);
-            min_offset = min_offset < offset ? min_offset : offset;
+            if(offset != -1) min_offset = min_offset < offset ? min_offset : offset;
         }
     }
 
@@ -501,9 +501,9 @@ void myz_delete(Myz myz, char* file_name, int file_number, char* files[]){
         minimum_offset = minimum_offset < data_offset ? minimum_offset : data_offset;
     }
 
-    write_after_delete(myz, file_name, minimum_offset);
-
-
+    if(minimum_offset != LONG_MAX){
+        write_after_delete(myz, file_name, minimum_offset);
+    }
 }
 
 static void write_after_delete(Myz myz, const char* file_name, off_t min_offset)
@@ -511,6 +511,7 @@ static void write_after_delete(Myz myz, const char* file_name, off_t min_offset)
     int fd;
     safe_sys_assign(fd, open(file_name, O_WRONLY));
     ftruncate(fd, min_offset);
+assert(min_offset > 0);
     safe_sys(lseek(fd, min_offset, SEEK_SET));
     
     Metadata metadata = myz->metadata;
@@ -562,6 +563,7 @@ void myz_create(const char* file_name, int file_count, const char* files[], bool
     }
 
     create_myz_file(myz, file_name);
+    myz_destroy(myz);
 }
 
 
@@ -593,4 +595,12 @@ void myz_append(const char* file_name, int file_count, const char* files[], bool
     }
 
     create_myz_file(myz, file_name);
+    myz_destroy(myz);
+}
+
+
+void myz_destroy(Myz myz){
+    metadata_destroy(myz->metadata);
+    free(myz->header);
+    free(myz);
 }

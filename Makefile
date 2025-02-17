@@ -9,12 +9,13 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 CC := gcc
 CFLAGS := -g3 -Wall -Wextra -pedantic # -Werror -O3
-LDFLAGS := -lm -pthread -lrt
+LDFLAGS := 
 
 PROGRAM := myz
 
 
 # ARGS := -s $(SHMID) -c 20 -o $(ORDER_TIME) -r $(REST_TIME)
+ARCHIVE_FILE := test_cases.myz
 ARGS := 
 
 

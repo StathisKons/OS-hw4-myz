@@ -176,6 +176,8 @@ void myznode_destroy(Pointer myz_node)
 	if(node->info != NULL){
 		free(node->info);
 	}
+
+	free(node);
 }
 
 
@@ -450,6 +452,7 @@ static void write_links(Metadata metadata)
 {
 	bool* visited = calloc(vector_size(metadata->nodes), sizeof(*visited));
 	write_l(metadata, vector_get_at(metadata->nodes, 0), ".", visited);
+	free(visited);
 }
 
 MyzNode metadata_find_node(Metadata metadata, const char* path_to_find, bool* exists){
