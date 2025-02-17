@@ -22,6 +22,8 @@ DestroyFunc vector_set_destroy_value(Vector vec, DestroyFunc destroy_value);
 
 void vector_destroy(Vector vec);
 
+// ! Modifies the order of the elements in exchange for an O(1) removal
+// it swaps the the element at the given index and then calls remove_last
 void vector_remove_at(Vector vec, int index);
 
 #endif // VECTOR_H

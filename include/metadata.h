@@ -1,12 +1,10 @@
 #ifndef METADATA_H
 #define METADATA_H
 
-
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <stdbool.h>
 #include "vector.h"
-
 
 #define MAX_NAME 256
 
@@ -28,7 +26,7 @@ struct myznode {
 	char* file_data;
 
 	// directory specific
-	Vector entries;	// Vector<Entries>
+	Vector entries;		// Vector<Entries>
 };
 
 typedef struct myznode myznode;
@@ -42,7 +40,7 @@ typedef struct {
 
 
 typedef struct {
-	Vector nodes;	// vector of myznodes
+	Vector nodes;	// Vector<MyzNode>
 } *Metadata;
 
 

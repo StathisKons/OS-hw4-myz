@@ -1,6 +1,7 @@
-# ARGS := -s $(SHMID) -c 20 -o $(ORDER_TIME) -r $(REST_TIME)
-ARCHIVE_FILE := test_cases.myz
-LIST_OF_FILES_DIRS := test_cases temp
+ARCHIVE_FILE := foo.myz
+LIST_OF_FILES_DIRS := test_cases bar  
+
+
 
 BUILD_DIR := ./build
 
@@ -17,8 +18,6 @@ LDFLAGS :=
 
 PROGRAM := myz
 
-
-
 # Default target
 .PHONY: all
 all: $(PROGRAM)
@@ -26,7 +25,6 @@ all: $(PROGRAM)
 # Program-specific source and object files
 myz: $(COMMON_OBJS) $(BUILD_DIR)/programs/myz.o
 	$(CC) $^ -o $@ $(LDFLAGS) 
-
 
 # Compile program-specific source files
 $(BUILD_DIR)/programs/%.o: ./programs/%.c
@@ -42,8 +40,6 @@ $(BUILD_DIR)/%.o: %.c
 .PHONY: run
 	# @echo "Specify a program to run: make run PROGRAM=builder|lexan|splitter"
 	# @./$(BUILD_DIR)/$(PROGRAM) $(ARGS)
-run: $(PROGRAM)
-	./$(PROGRAM) $(ARGS)
 
 .PHONY: run_create
 run_create: $(PROGRAM)

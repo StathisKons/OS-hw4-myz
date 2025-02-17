@@ -1,6 +1,5 @@
 #include "sys_utils.h"
 #include <assert.h>
-#include <stdlib.h>
 #include <errno.h>
 
 void* safe_malloc(size_t size){
@@ -48,5 +47,6 @@ ssize_t guaranteed_read(int fd, void *buffer, size_t bytes_to_read_){
         perror(buffer);
         exit(EXIT_FAILURE);
     }
+
     return bytes_read;
 }

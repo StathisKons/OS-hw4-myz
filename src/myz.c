@@ -1,11 +1,8 @@
 #include "myz.h"
-#include "header.h"
-#include "metadata.h"
 #include "sys_utils.h"
 #include <fcntl.h>
 #include <assert.h>
 #include <limits.h>
-#include <unistd.h>
 #include <errno.h>
 
 static void write_after_delete(Myz myz, const char* file_name, off_t min_offset);
@@ -18,6 +15,7 @@ static void write_name(int fd, const char* name)
     safe_sys(write(fd, &name_length, sizeof(name_length)));
     safe_sys(write(fd, name, name_length));
 }
+
 
 
 static void write_entries(Vector entries, int fd)
@@ -91,6 +89,7 @@ void create_myz_file(Myz myz, const char* file_name)
         write_metadata_node(node, fd);
     }
 
+    // Write the header with the correct properties
     myz->header->metadata_offset = metadata_offset;
     safe_sys_assign(myz->header->file_size, lseek(fd, 0, SEEK_END));
     header_write(myz->header, fd);
@@ -164,6 +163,7 @@ static Header read_header(int fd)
     safe_sys(lseek(fd, 0, SEEK_SET));
 
     guaranteed_read(fd, &header->magic_number, MAGIC_NUMBER_SIZE);
+    // A .myz file needs to start with the MAGIC_NUMBER  "MYZ" (with a null byte)
     if(strcmp(header->magic_number, MAGIC_NUMBER) != 0)
     {
         fprintf(stderr, "Invalid Magic Number, make sure its a .myz file\n");
@@ -188,16 +188,18 @@ Myz read_myz_file(const char* name)
     safe_sys(lseek(fd, myz->header->metadata_offset, SEEK_SET));
 
     int metadata_entries;
-    myz->metadata = safe_malloc(sizeof(*myz->metadata));
-    guaranteed_read(fd, &metadata_entries, sizeof(metadata_entries));
+    myz->metadata = safe_malloc(sizeof(*myz->metadata)); 
+    guaranteed_read(fd, &metadata_entries, sizeof(metadata_entries)); // Number of metadata entries
     myz->metadata->nodes = vector_create(metadata_entries, myznode_destroy);
-    
+   
+    // Read Metadata
     for(int i = 0; i < metadata_entries; i++)
     {
        MyzNode node = read_node(fd);
        vector_insert_last(myz->metadata->nodes, node);
     }
 
+    // Read data
     for(int i = 0; i < metadata_entries; i++)
     {
         MyzNode node = vector_get_at(myz->metadata->nodes, i);
@@ -212,7 +214,6 @@ Myz read_myz_file(const char* name)
             safe_sys(lseek(fd, node->data_offset, SEEK_SET));
             node->file_data = safe_malloc(sizeof(*node->file_data) * node->file_size);
             guaranteed_read(fd, node->file_data, node->file_size * sizeof(*node->file_data));
-            // printf("read %s, data: %s\n", node->name, node->file_data);
         }
     }
     
@@ -221,6 +222,7 @@ Myz read_myz_file(const char* name)
 }
 
 // returns true if equal false otherwise
+// Compares the node name without the .gz suffix if compressed
 bool compare_names(MyzNode node, char* name)
 {
     char tname1[256] = {0};
@@ -238,13 +240,14 @@ bool compare_names(MyzNode node, char* name)
 }
 
 
+// Similar to write but writes ONLY the datas of the new files, the header and the metadata
 void write_after_append(Myz myz, int old_entries, char* filename)
 {
     Metadata metadata = myz->metadata;
     int fd = open(filename, O_WRONLY);
     lseek(fd, myz->header->metadata_offset, SEEK_SET);
 
-
+    // Only write the new nodes to save time
     for(int i = old_entries; i < vector_size(metadata->nodes); i++)
     {
         MyzNode node = vector_get_at(metadata->nodes, i);
@@ -258,6 +261,7 @@ void write_after_append(Myz myz, int old_entries, char* filename)
         }
     }
 
+    // Write metadata
     myz->header->metadata_offset = lseek(fd, 0, SEEK_CUR);
     int size = vector_size(metadata->nodes);
     safe_sys(write(fd, &size, sizeof(size)));
@@ -268,6 +272,8 @@ void write_after_append(Myz myz, int old_entries, char* filename)
     }
 
     safe_sys_assign(myz->header->file_size, lseek(fd, 0, SEEK_CUR));
+
+    // Write header
     header_write(myz->header, fd);
     close(fd);
 }
@@ -280,6 +286,7 @@ bool append(Myz myz, const char* path, bool compressed)
     char* tpath = strdup(path);
     bool exists;
 
+    //Check if file exists
     MyzNode node = metadata_find_node(metadata, path, &exists);
     if(exists)
     {
@@ -288,6 +295,7 @@ bool append(Myz myz, const char* path, bool compressed)
     }
     else if(strcmp(node->name, ".") == 0)
     {
+        // If filepath does not exist as a whole write all of it in the metadata
         char* token;
         char curpath[1000];
         memset(curpath, 0, 1000);
@@ -299,6 +307,7 @@ bool append(Myz myz, const char* path, bool compressed)
             strcat(curpath, token);
             lstat(curpath, &info);
             entries_insert(prev, token,  vector_size(metadata->nodes));
+            // If filepath ends in a regular file or a symlink write it and exit
             if(S_ISREG(info.st_mode))
             {
                 long int file_size;
@@ -323,11 +332,13 @@ bool append(Myz myz, const char* path, bool compressed)
             token = strtok(NULL, "/");
         }
 
+        // Write the final directory in the metadata using read_data
         read_data(path, metadata, compressed, vector_size(metadata->nodes) -1 );
         free(tpath);
         return true;
     }
 
+    // If filepath exists partially build the filepath to the nearest node
     char curpath[1000] = {0};
     char* token = strtok(tpath, "/");
     while(token != NULL)
@@ -348,6 +359,7 @@ bool append(Myz myz, const char* path, bool compressed)
         strcat(curpath, token);
         lstat(curpath, &info);
         entries_insert(node, token, vector_size(metadata->nodes));
+        // if filepath given ends in a regular file or a symbolic link , insert them and exit
         if(S_ISREG(info.st_mode))
         {
             long fsize;
@@ -372,6 +384,7 @@ bool append(Myz myz, const char* path, bool compressed)
         node = vector_get_at(metadata->nodes, vector_size(metadata->nodes) - 1);
     }
 
+    // If filepath ends in a directory , insert it using read_data
     read_data(path, metadata, compressed, vector_size(metadata->nodes) - 1);
     free(tpath);
     return true;
@@ -392,6 +405,7 @@ void myz_extract(Myz myz){
 }
 
 
+// Correct each reference of the node in the old_index that was swapped to the new_index
 static void fix_indexes(Metadata metadata, int old_index, int new_index){
     bool found = false;
     for(int size = vector_size(metadata->nodes), i = 0 ; i < size ; i++){
@@ -408,13 +422,15 @@ static void fix_indexes(Metadata metadata, int old_index, int new_index){
             Entry entry = vector_get_at(node->entries, j);
             if(entry->myznode_index == old_index){
                 entry->myznode_index = new_index;
-                assert(!found);     // Μπορει εχει μονο εναν parent
+                assert(!found);     
                 found = true;
             }
         }
     }
 }
 
+// Delete a symbolic link, an empty directory or a regular file
+// and remove the references of this file from its parent directory
 static off_t delete_non_dir(Metadata metadata, MyzNode node, MyzNode parent){
     Vector parent_entries = parent->entries;
     assert(parent_entries != NULL);
@@ -423,7 +439,7 @@ static off_t delete_non_dir(Metadata metadata, MyzNode node, MyzNode parent){
     off_t data_offset = LONG_MAX;;
     for(int i = 0 ; i < vector_size(parent_entries) ; i++){
         Entry entry = vector_get_at(parent_entries, i);
-        MyzNode cur_node = vector_get_at(metadata->nodes, entry->myznode_index);    // bres onoma
+        MyzNode cur_node = vector_get_at(metadata->nodes, entry->myznode_index);   
         if(strcmp(cur_node->name, node->name) == 0){
             node_index = entry->myznode_index;
             if(!S_ISDIR(cur_node->info->mode))
@@ -449,6 +465,7 @@ static off_t delete_non_dir(Metadata metadata, MyzNode node, MyzNode parent){
 
 
 
+// Recursively delete all of the entries in a directory
 static off_t delete_dir(Metadata metadata, MyzNode node){
     if(node->entries == NULL){
         return LONG_MAX;
@@ -477,7 +494,7 @@ static off_t delete_dir(Metadata metadata, MyzNode node){
 static off_t delete_dir_wrapper(Metadata metadata, MyzNode node, MyzNode parent){
     off_t min_offset = delete_dir(metadata, node);
 
-    delete_non_dir(metadata, node, parent);     // WTF paizei kai na doylepsei
+    delete_non_dir(metadata, node, parent);   
     return min_offset;   // return the min
 }
 
@@ -498,7 +515,7 @@ static off_t delete_node(Metadata metadata, char* file, bool* exists){
         offset = delete_non_dir(metadata, node, parent);
     }
     
-    return offset;    // ummm  ftiakse
+    return offset;    
 }
 
 void myz_delete(Myz myz, char* file_name, int file_number, char* files[]){
@@ -519,6 +536,8 @@ void myz_delete(Myz myz, char* file_name, int file_number, char* files[]){
     }
 }
 
+// Write after delete, it writes the header, and the datas ONLY of the files whose offset
+// was after the smallest offset of the files deleted
 static void write_after_delete(Myz myz, const char* file_name, off_t min_offset)
 {
     int fd;
@@ -535,6 +554,7 @@ assert(min_offset > 0);
     {
         MyzNode node = vector_get_at(metadata->nodes, i);
 
+        // ONLY WRITE THE DATA THAT WERE AFTER THE SMALLEST OFFSET
         if(node->file_data != NULL && node->data_offset > min_offset)
         {
             safe_sys_assign(node->data_offset, lseek(fd, 0, SEEK_CUR));

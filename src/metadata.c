@@ -13,11 +13,11 @@ static char* compress_and_read(const char* path, long int* fsize);
 
 //retrieve file permissions in Unix-like format from a Myznode using the stat structure
 static mode_t getPermissions(MyzNode node)
-	{
- 		return node->info->mode & 0777;
-	}
+{
+	return node->info->mode & 0777;
+}
 
-Entry entry_create(char* name, int myznode_index){
+static Entry entry_create(char* name, int myznode_index){
 	Entry entry = safe_malloc(sizeof(*entry));
 	strcpy(entry->name, name);
 	entry->myznode_index = myznode_index;	
@@ -56,6 +56,7 @@ void metadata_destroy(Metadata metadata)
 	free(metadata);
 }
 
+// Build filepath entries and recursively read the directory if it ends at one
 void read_Data(Metadata metadata, const char* path, bool compressed)
 {
 	bool fl = false;
@@ -66,7 +67,7 @@ void read_Data(Metadata metadata, const char* path, bool compressed)
 	char* token;
 	char* delims = "/";
 	token = strtok(tpath, delims);
-	lstat(".", &info);
+	lstat(".", &info); // the first entry of the metadata is a parent file for easier access
 	metadata_insert(metadata, ".", info, compressed, 0, NULL);
 	
 	MyzNode prev = vector_get_at(metadata->nodes, 0);
@@ -74,11 +75,14 @@ void read_Data(Metadata metadata, const char* path, bool compressed)
 	do {
 		strcat(relpath, token);
 		safe_sys(lstat(relpath, &info));
+		// If the filepath it ends in a non-directory 
 		if(!S_ISDIR(info.st_mode))
 		{
 			fl = true;
 			break;
 		}
+
+		// Keep track of the previous directory , to update its entries
 		strcat(relpath, "/");
 		metadata_insert(metadata, token, info, false, 0, NULL);
 		cur = vector_get_at(metadata->nodes, vector_size(metadata->nodes) - 1);
@@ -88,12 +92,15 @@ void read_Data(Metadata metadata, const char* path, bool compressed)
 		}
 		prev = cur;
 	} while((token = strtok(NULL, delims)));
+
+	
 	if(fl)
 	{
 		char* file_data = NULL;
 		long int fsize = 0;
 		char name[256] = {0};
 		
+		// Insert the non-directory file , the filepath ended in
 		if(S_ISLNK(info.st_mode))
 		{
 			file_data = safe_malloc(sizeof(*file_data) * (info.st_size + 1));
@@ -119,6 +126,8 @@ void read_Data(Metadata metadata, const char* path, bool compressed)
 		entries_insert(prev, token, vector_size(metadata->nodes) - 1);
 	}
 	free(tpath);
+
+	// Insert the directory the filepath ended to
 	if(!fl)
 		read_data(path, metadata, compressed, vector_size(metadata->nodes) - 1);
 }
@@ -139,10 +148,9 @@ void metadata_insert(Metadata metadata, char* name, struct stat info, bool compr
 	node->info->gid = info.st_gid;
 	node->info->uid = info.st_uid;
 	node->info->mode = info.st_mode;
-	// node->type = find_type(info->mode);
 	node->compressed = compressed;
 
-	node->data_offset = -1;	// TODO Define
+	node->data_offset = -1;	
 	node->file_size = file_size;
 	node->file_data = file_data;
 	node->entries = NULL;
@@ -174,7 +182,6 @@ void myznode_destroy(Pointer myz_node)
 char* read_file(char* path, long int* fsize){
 	int fd = open(path, O_RDONLY);
 
-
 	*fsize = lseek(fd, 0, SEEK_END);
 	if(*fsize == 0) 
 	{
@@ -190,6 +197,7 @@ char* read_file(char* path, long int* fsize){
 }
 
  
+// Recursively read the data of a directory
 void read_data(const char* path, Metadata metadata, bool compressed, int dir_index)
 {
 	DIR* directory = opendir(path);
@@ -200,11 +208,12 @@ void read_data(const char* path, Metadata metadata, bool compressed, int dir_ind
 	}
 	
 	struct dirent *entries;
+
+	// Check all the entries of the directory
 	while((entries = readdir(directory)) != NULL)
 	{
 		if(strcmp(entries->d_name, ".") == 0 || strcmp(entries->d_name, "..") == 0) continue;
 		char fpath[1024] = {0};
-		//printf("Entries: %s\n", entries->d_name);
 		sprintf(fpath, "%s/%s", path, entries->d_name);
 		
 		struct stat info;
@@ -215,6 +224,7 @@ void read_data(const char* path, Metadata metadata, bool compressed, int dir_ind
 		char fname[259] = {0};
 		strcpy(fname, entries->d_name);
 		
+		// for symlinks
 		if((S_ISLNK(info.st_mode)))
 		{
 			fdata = safe_malloc(sizeof(*fdata) * (info.st_size + 1));
@@ -223,6 +233,7 @@ void read_data(const char* path, Metadata metadata, bool compressed, int dir_ind
 			fdata[info.st_size] = '\0';
 		}		
 
+		// for regular files
 		if(S_ISREG(info.st_mode))
 		{
 			if(compressed && !is_compressed(fpath))
@@ -237,6 +248,7 @@ void read_data(const char* path, Metadata metadata, bool compressed, int dir_ind
 		}
 		metadata_insert(metadata, fname, info, compressed, fsize, fdata);
 
+		// insert it at the parent directory
 		if(dir_index != -1)
 		{
 			entries_insert(vector_get_at(metadata->nodes, dir_index), entries->d_name, vector_size(metadata->nodes) - 1);
@@ -253,6 +265,7 @@ void read_data(const char* path, Metadata metadata, bool compressed, int dir_ind
 }
 
 
+// Check if its compressed
 static bool is_compressed(char* path)
 {
 	int fd = open(path, O_RDONLY);
@@ -273,7 +286,7 @@ static off_t get_file_size(int fd){
 }
 
 // compreses file and static 
-void compress(char* path)
+static void compress(char* path)
 {
 	int pid = fork();
 	if(!pid) 
@@ -284,7 +297,7 @@ void compress(char* path)
 	safe_sys(wait(NULL));
 }
 
-void decompress(char* path)
+static void decompress(char* path)
 {
 	int pid = fork();
 	if(!pid)
@@ -296,7 +309,8 @@ void decompress(char* path)
 
 }
 
-char* compress_and_read(const char* path, long int* fsize)
+// Compresses the file, reads it and decompresses it
+static char* compress_and_read(const char* path, long int* fsize)
 {
 	char tname[1024];
 	strcpy(tname, path);
@@ -315,6 +329,7 @@ char* compress_and_read(const char* path, long int* fsize)
 	return fdata;
 }
 
+// Write recursively the files and directories
 static void write_rec(Metadata metadata, MyzNode node, char* path, bool* visited)
 {
 	if(node->entries == NULL)
@@ -333,6 +348,7 @@ static void write_rec(Metadata metadata, MyzNode node, char* path, bool* visited
 		if(visited[entry->myznode_index]) continue;
 		visited[entry->myznode_index] = true;
 		
+		// If its a directory , create it and then call the function for its entries
 		if(S_ISDIR(tnode->info->mode))
 		{
 			mkdir(tpath, getPermissions(tnode));
@@ -340,7 +356,7 @@ static void write_rec(Metadata metadata, MyzNode node, char* path, bool* visited
 		}
 		else if(S_ISREG(tnode->info->mode))
 		{
-			printf("%s\n", tnode->name);
+			// If its a regular file just create it
 			int fd;
 			safe_sys_assign(fd, open(tpath, O_CREAT | O_TRUNC | O_WRONLY, getPermissions(tnode)));
 			if(tnode->file_data != NULL){						
@@ -364,6 +380,7 @@ static void write_rec(Metadata metadata, MyzNode node, char* path, bool* visited
 
 }
 
+
 void write_Data(Metadata metadata)
 {
 	bool* visited = calloc(vector_size(metadata->nodes), sizeof(*visited));
@@ -375,6 +392,7 @@ void write_Data(Metadata metadata)
 		if(visited[i]) continue;
 		visited[i] = true;
 
+		// Same as write_rec , except if you encounter a directory call write_rec
 		if(S_ISDIR(node->info->mode))
 		{
 			mkdir(node->name, getPermissions(node));
@@ -401,9 +419,11 @@ void write_Data(Metadata metadata)
 
 	free(visited);
 
+	// Write links at the end so all possible references exist
 	write_links(metadata);
 }
 
+// Same logic as write_rec except it only writes symbolic links
 static void write_l(Metadata metadata, MyzNode node, char* path, bool* visited)
 {
 	if(node->entries == NULL)
@@ -434,6 +454,7 @@ static void write_l(Metadata metadata, MyzNode node, char* path, bool* visited)
 	}
 }
 
+// Same logic as write_Data except it only writes symlinks
 static void write_links(Metadata metadata)
 {
 	bool* visited = calloc(vector_size(metadata->nodes), sizeof(*visited));
@@ -441,6 +462,7 @@ static void write_links(Metadata metadata)
 	free(visited);
 }
 
+// Find the nearest node to the filepath given
 MyzNode metadata_find_node(Metadata metadata, const char* path_to_find, bool* exists){
 	assert(metadata != NULL && path_to_find != NULL);
 
@@ -460,7 +482,7 @@ MyzNode metadata_find_node(Metadata metadata, const char* path_to_find, bool* ex
 		for(int size = vector_size(current->entries), i = 0 ; i < size ; i++){
 			Entry entry = vector_get_at(current->entries, i);
 			MyzNode node = vector_get_at(metadata->nodes, entry->myznode_index);
-			if(compare_names(node, token)){		// if names are equal 
+			if(compare_names(node, token)){		// if names are equal return that this node exists
 				current = node;
 				found = true;
 				break;
@@ -480,6 +502,7 @@ MyzNode metadata_find_node(Metadata metadata, const char* path_to_find, bool* ex
 }
 
 
+// Same as metadata_find_node except it returns the node before the last file in the filepath
 MyzNode metadata_find_parent(Metadata metadata, const char* path_to_find, bool* exists){
 	assert(metadata != NULL && path_to_find != NULL);
 
@@ -510,6 +533,7 @@ static void print_file_permissions(mode_t mode){
     printf( (mode & S_IXOTH) ? "x" : "-");
 }
 
+// Same as write_rec except it only prints the node_names
 void print_rec(Metadata metadata, MyzNode node, int rec, bool print_metadata)
 {
 	if(node->entries == NULL)
@@ -518,15 +542,12 @@ void print_rec(Metadata metadata, MyzNode node, int rec, bool print_metadata)
 	for(int i = 0; i < vector_size(node->entries); i++)
 	{
 		Entry entry = vector_get_at(node->entries, i);
-		//printf("NODE: %s, INDEX GIVEN: %d  METADATA SIZE: %d \n", node->name, entry->myznode_index, vector_size(metadata->nodes));
 		MyzNode tnode = vector_get_at(metadata->nodes, entry->myznode_index);
 		for(int j = 0; j < rec; j++)
 		{
 			printf(" ");
 		}
 		printf("|");
-
-
 		
 		for(int j = 0; j < rec; j++)
 		{
@@ -549,7 +570,6 @@ void print_rec(Metadata metadata, MyzNode node, int rec, bool print_metadata)
 
 void print(Metadata metadata, bool print_metadata)
 {
-	// bool* visited = calloc(vector_size(metadata->nodes), sizeof(bool));
 	MyzNode node = vector_get_at(metadata->nodes, 0);
 	if(node->entries == NULL)
 		return;
