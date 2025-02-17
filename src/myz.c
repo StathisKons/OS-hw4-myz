@@ -356,6 +356,16 @@ bool append(Myz myz, const char* path, bool compressed)
             free(tpath);
             return true;
         }
+        else if(S_ISLNK(info.st_mode))
+            {
+                long int file_size = info.st_size + 1;
+                char* file_data = safe_malloc(sizeof(*file_data) * (info.st_size + 1));
+                readlink(curpath, file_data, sizeof(*file_data) * file_size);
+                file_data[info.st_size] = '\0';
+                metadata_insert(metadata, token, info, compressed, file_size, file_data);
+                free(tpath);
+                return true;
+            }
 
         metadata_insert(metadata, token, info, compressed, 0, NULL);
         strcat(curpath, "/");

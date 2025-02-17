@@ -1,3 +1,7 @@
+# ARGS := -s $(SHMID) -c 20 -o $(ORDER_TIME) -r $(REST_TIME)
+ARCHIVE_FILE := test_cases.myz
+LIST_OF_FILES_DIRS := test_cases temp
+
 BUILD_DIR := ./build
 
 SRC_DIRS := ./src
@@ -13,10 +17,6 @@ LDFLAGS :=
 
 PROGRAM := myz
 
-
-# ARGS := -s $(SHMID) -c 20 -o $(ORDER_TIME) -r $(REST_TIME)
-ARCHIVE_FILE := test_cases.myz
-LIST_OF_FILES_DIRS := test_cases temp
 
 
 # Default target
