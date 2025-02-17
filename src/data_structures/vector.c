@@ -99,7 +99,6 @@ void vector_destroy(Vector vec){
     free(vec);
 }
 
-// TODO MOVE OUT OF VECTOR MODULE
 static void swap(Pointer *a, Pointer *b){
     Pointer tmp = *a;
     *a = *b;

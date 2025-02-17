@@ -4,49 +4,13 @@
 #include "sys_utils.h"
 #include <fcntl.h>
 #include <assert.h>
+#include <limits.h>
+#include <unistd.h>
+
+
+static void write_after_delete(Myz myz, const char* file_name, off_t min_offset);
 
 static void write_stat(int fd, MyzNode node);
-
-// void read_metadata(Myz myz, int fd)
-// {
-// 	lseek(fd, myz->header->metadata_offset, SEEK_SET);
-
-// 	Metadata metadata = safe_malloc(sizeof(*metadata));
-//     metadata->nodes = vector_create(0, NULL);   // TODO: destroy function
-// 	MyzNode node = NULL;
-// 	while((node = metadata_read_node(fd)) != NULL)
-// 	{
-// 		vector_insert_last(metadata->nodes, node);
-// 	}
-
-// 	myz->metadata = metadata;
-// }
-
-// Myz read_from_file(const char* path)
-// {
-//     int fd;
-//     safe_sys_assign(fd, open(path, O_RDONLY));
-//     Myz myz = safe_malloc(sizeof(*myz));
-
-//     myz->header = header_get(fd);
-
-//     read_metadata(myz, fd);
-    
-//     for(int i = 0; i < vector_size(myz->metadata->nodes); i++)
-//     {
-//         MyzNode node = vector_get_at(myz->metadata->nodes, i);
-        
-//         if(S_ISREG(node->info->mode))
-//         {
-//             safe_sys(lseek(fd, node->data_offset, SEEK_SET));
-//             node->file_data = safe_malloc(node->file_size * sizeof(*node->file_data));
-//             guaranteed_read(fd, node->file_data, node->file_size * sizeof(*node->file_data));
-//         }
-//     }
-
-
-//     return myz;
-// }
 
 static void write_name(int fd, const char* name)
 {
@@ -109,8 +73,6 @@ void create_myz_file(Myz myz, const char* file_name)
     for(int i = 0 ; i < size ; i++)
     {
         MyzNode node = vector_get_at(nodes, i);
-        //assert((node->file_data != NULL && S_ISREG(node->info->mode)) || (node->file_data == NULL && !S_ISREG(node->info->mode)));
-        // printf("writing %s, data: %s\n", node->name, node->file_data);
         
         if(node->file_data != NULL)
         {
@@ -189,6 +151,7 @@ static MyzNode read_node(int fd)
     }
     if(S_ISDIR(node->info->mode))
     {
+        node->file_data = NULL;
         node->entries = read_entries(fd);
     }
 
@@ -313,7 +276,7 @@ void write_after_append(Myz myz, int old_entries, char* filename)
 
 
 
- bool append(Myz myz, char* path, bool compressed)
+bool append(Myz myz, char* path, bool compressed)
 {
     Metadata metadata = myz->metadata;
     char* tpath = strdup(path);
@@ -417,7 +380,6 @@ static void fix_indexes(Metadata metadata, int old_index, int new_index){
     bool found = false;
     for(int size = vector_size(metadata->nodes), i = 0 ; i < size ; i++){
         MyzNode node = vector_get_at(metadata->nodes, i);
-        printf("NODE NAME: %s\n", node->name);
         if(node->entries == NULL){
             continue;
         }
@@ -437,16 +399,21 @@ static void fix_indexes(Metadata metadata, int old_index, int new_index){
     }
 }
 
-static void delete_non_dir(Metadata metadata, MyzNode node, MyzNode parent){
+static off_t delete_non_dir(Metadata metadata, MyzNode node, MyzNode parent){
     Vector parent_entries = parent->entries;
     assert(parent_entries != NULL);
 
     int node_index = -1;
+    off_t data_offset = LONG_MAX;;
     for(int i = 0 ; i < vector_size(parent_entries) ; i++){
         Entry entry = vector_get_at(parent_entries, i);
         MyzNode cur_node = vector_get_at(metadata->nodes, entry->myznode_index);    // bres onoma
         if(strcmp(cur_node->name, node->name) == 0){
             node_index = entry->myznode_index;
+            if(!S_ISDIR(cur_node->info->mode))
+            {
+                data_offset = cur_node->data_offset;
+            }
             vector_remove_at(parent_entries, i);
 
             if(vector_size(parent_entries) == 0){
@@ -461,69 +428,122 @@ static void delete_non_dir(Metadata metadata, MyzNode node, MyzNode parent){
 
     fix_indexes(metadata, vector_size(metadata->nodes) - 1, node_index);;
     vector_remove_at(metadata->nodes, node_index);
+    return data_offset;
 }
 
 
 
-// des an xreiazetai to parent
-static void delete_dir(Metadata metadata, MyzNode node){
+static off_t delete_dir(Metadata metadata, MyzNode node){
     if(node->entries == NULL){
-        // delete_non_dir(metadata, node, parent);
-        return;
+        return LONG_MAX;
     }
     
     Vector entries = node->entries;
     int size = vector_size(entries);
+    off_t min_offset = LONG_MAX;
     for(int i = size - 1; i >= 0 ; i--){
         Entry entry = vector_get_at(entries, i);
         MyzNode child = vector_get_at(metadata->nodes, entry->myznode_index);
         if(S_ISDIR(child->info->mode)){
-            delete_dir(metadata, child);
-            delete_non_dir(metadata, child, node);
+            off_t offset = delete_dir(metadata, child);
+            min_offset = min_offset < offset ? min_offset : offset;
+            delete_non_dir(metadata, child, node);      // this is deleting the empty directory
         }
         else {
-            delete_non_dir(metadata, child, node);
+            off_t offset = delete_non_dir(metadata, child, node);
+            min_offset = min_offset < offset ? min_offset : offset;
         }
     }
 
+    return min_offset;
 }
-//  foo/temp/file  
-// delete dir foo/temp
-// bgazeis temp apo entries foo
-static void delete_dir_wrapper(Metadata metadata, MyzNode node, MyzNode parent){
-    delete_dir(metadata, node);
+
+static off_t delete_dir_wrapper(Metadata metadata, MyzNode node, MyzNode parent){
+    off_t min_offset = delete_dir(metadata, node);
 
     delete_non_dir(metadata, node, parent);     // WTF paizei kai na doylepsei
+    return min_offset;   // return the min
 }
 
-static bool delete_node(Metadata metadata, char* file){
-    bool exists;
-    printf("%s\n", file);
-    MyzNode node = metadata_find_node(metadata, file, &exists);
-    if(!exists){
-        return false;
+
+// returns the smallest offset of a deleted node (to know which nodes need to be rewritten)
+static off_t delete_node(Metadata metadata, char* file, bool* exists){
+    MyzNode node = metadata_find_node(metadata, file, exists);
+    if(!(*exists)){
+        return LONG_MAX;
     }
 
-    MyzNode parent = metadata_find_parent(metadata, file, &exists);
-    // assert(exists);
+    MyzNode parent = metadata_find_parent(metadata, file, &(bool){0});
+    off_t offset;
 
     if(S_ISDIR(node->info->mode)){
-        delete_dir_wrapper(metadata, node, parent);
+        offset = delete_dir_wrapper(metadata, node, parent);
     } else {
-        delete_non_dir(metadata, node, parent);
+        offset = delete_non_dir(metadata, node, parent);
     }
     
-    return true;    // ummm  ftiakse
+    return offset;    // ummm  ftiakse
 }
 
-void myz_delete(Myz myz, int file_number, char* files[]){
+void myz_delete(Myz myz, int file_number, char*file_name,  char* files[]){
+    off_t minimum_offset = LONG_MAX;
     for(int i = 0 ; i < file_number ; i++){
-        bool removed = delete_node(myz->metadata, files[i]);
+        bool removed;
+        off_t data_offset = delete_node(myz->metadata, files[i], &removed);
 
         if(!removed){
             printf("%s does not exist\n", files[i]);
         }
+
+        minimum_offset = minimum_offset < data_offset ? minimum_offset : data_offset;
+        // printf("\t\t after deleting %s current minimum offset %ld\n", files[i], minimum_offset);
     }
+
+    write_after_delete(myz, file_name, minimum_offset);
+
+
 }
 
+static void write_after_delete(Myz myz, const char* file_name, off_t min_offset)
+{
+    int fd;
+    safe_sys_assign(fd, open(file_name, O_WRONLY));
+    ftruncate(fd, min_offset);
+    safe_sys(lseek(fd, min_offset, SEEK_SET));
+    
+    Metadata metadata = myz->metadata;
 
+    int size = vector_size(metadata->nodes);
+
+    for(int i = 0; i < size; i++)
+    {
+        MyzNode node = vector_get_at(metadata->nodes, i);
+
+        if(node->file_data != NULL)
+        {
+            if(node->data_offset > min_offset)
+            {
+                safe_sys_assign(node->data_offset, lseek(fd, 0, SEEK_CUR));
+                safe_sys(write(fd, node->file_data, node->file_size));
+            }
+        }
+    }
+
+    off_t metadata_offset;
+    safe_sys_assign(metadata_offset, lseek(fd, 0, SEEK_CUR));
+
+    safe_sys(write(fd, &size, sizeof(size)));
+
+    for(int i = 0; i < size; i++)
+    {
+        MyzNode node = vector_get_at(metadata->nodes, i);
+        write_metadata_node(node, fd);
+    }
+
+    myz->header->metadata_offset = metadata_offset;
+    safe_sys_assign(myz->header->file_size, lseek(fd, 0, SEEK_CUR));
+    header_write(myz->header, fd);
+
+
+    safe_sys(close(fd));
+}

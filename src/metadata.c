@@ -20,7 +20,7 @@ static bool is_compressed(char* path);
 char* compress_and_read(const char* path, long int* fsize);
 void read_data(char* path, Metadata metadata, bool compressed, int dir_index);
 
-//etrieve file permissions in Unix-like format from a Myznode using the stat structure
+//retrieve file permissions in Unix-like format from a Myznode using the stat structure
 static mode_t getPermissions(MyzNode node)
 	{
  		return node->info->mode & 0777;
@@ -64,20 +64,6 @@ void metadata_destroy(Metadata metadata)
 	vector_destroy(metadata->nodes);
 	free(metadata);
 }
-
-// static FileType find_type(mode_t mode)
-// {
-// 	if(S_ISDIR(mode)){
-// 		return DIRECTORY;
-// 	} else if(S_ISREG(mode)) {
-// 		return REGULAR_FILE;
-// 	} else if(S_ISLNK(mode)){
-// 		return SYMBOLIC_LINK;
-// 	} else {
-// 		fprintf(stderr, "unsupported file type\n");
-// 		exit(EXIT_FAILURE);
-// 	}
-// }
 
 void read_Data(Metadata metadata, char* path, bool compressed)
 {
@@ -151,6 +137,10 @@ void myznode_destroy(Pointer myz_node)
 
 	if(node->entries != NULL){
 		vector_destroy(node->entries);
+	}
+
+	if(node->info != NULL){
+		free(node->info);
 	}
 }
 
@@ -501,15 +491,11 @@ void print_s(Metadata metadata)
 	for(int i = 0; i < vector_size(metadata->nodes); i++)
 	{
 		MyzNode node = vector_get_at(metadata->nodes, i);
-		printf("INDEX: %d\tNAME: %s\n", i, node->name);
-		if(S_ISDIR(node->info->mode))
-		{	
-			if(node ->entries == NULL) continue;
-			for(int j = 0; j < vector_size(node->entries); j++)
-			{
-				Entry entry = vector_get_at(node->entries, j);
-				printf("ENTRY: %s of %s at index %d\n", entry->name, node->name, entry->myznode_index);
-			}
+		printf("INDEX: %d\tNAME: %s", i, node->name);
+		if(!S_ISDIR(node->info->mode))
+		{
+			printf("\t%ld", node->data_offset);
 		}
+		printf("\n");
 	}
 }

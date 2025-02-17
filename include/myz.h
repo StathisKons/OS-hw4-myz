@@ -6,7 +6,6 @@
 
 typedef struct {
     Header header;
-    // ? data
     Metadata metadata;
 } *Myz;
 
@@ -39,6 +38,6 @@ void myz_extract(Myz myz);
 
 bool append(Myz myz, char* path, bool compressed);
 
-void myz_delete(Myz myz, int file_number, char* files[]);
+void myz_delete(Myz myz, int file_number, char* file_name, char* files[]);
 
 #endif // MYZ_H
