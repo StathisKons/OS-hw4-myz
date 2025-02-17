@@ -435,14 +435,10 @@ static void write_l(Metadata metadata, MyzNode node, char* path, bool* visited)
 		}
 		else if(S_ISLNK(tnode->info->mode))
 		{
-			printf("Here\n\n");
 			strcat(tpath, path);
 			strcat(tpath, "/");
 			strcat(tpath, tnode->name);
-			printf("\t\t %s\n", tnode->name);
-			printf("\t\t%s\n", tnode->file_data);
 			assert(tnode->file_data != NULL);
-			printf("%s\n", tnode->file_data);
 			symlink(tnode->file_data, tpath);
 		}
 	}
@@ -569,17 +565,4 @@ void print(Metadata metadata, bool print_metadata)
 		return;
 
 	print_rec(metadata, node, 0, print_metadata);
-}
-
-void print_s(Metadata metadata)
-{
-	for(int i = 0; i < vector_size(metadata->nodes); i++)
-	{
-		MyzNode node = vector_get_at(metadata->nodes, i);
-		if(!S_ISDIR(node->info->mode))
-		{
-			printf("\t%ld", node->data_offset);
-		}
-		printf("\n");
-	}
 }

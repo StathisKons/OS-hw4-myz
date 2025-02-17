@@ -74,6 +74,4 @@ MyzNode metadata_find_parent(Metadata metadata, const char* path_to_find, bool* 
 
 void print(Metadata metadata, bool print_metadata);
 
-void print_s(Metadata metadata);
-
 #endif // METADATA_H 
