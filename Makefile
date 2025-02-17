@@ -45,39 +45,39 @@ $(BUILD_DIR)/%.o: %.c
 run: $(PROGRAM)
 	./$(PROGRAM) $(ARGS)
 
-.PHONY run_create
+.PHONY: run_create
 run_create: $(PROGRAM)
 	./$(PROGRAM) -c $(ARCHIVE_FILE) $(LIST_OF_FILES_DIRS)
 
-.PHONY run_append
+.PHONY: run_append
 run_append: $(PROGRAM)
 	./$(PROGRAM) -a $(ARCHIVE_FILE) $(LIST_OF_FILES_DIRS)
 
-.PHONY run_extract
+.PHONY: run_extract
 run_extract: $(PROGRAM)
 	./$(PROGRAM) -x $(ARCHIVE_FILE)
 
-.PHONY run_delete
+.PHONY: run_delete
 run_delete: $(PROGRAM)
 	./$(PROGRAM) -d $(ARCHIVE_FILE) $(LIST_OF_FILES_DIRS)
 
-.PHONY run_metadata
+.PHONY: run_metadata
 run_metadata: $(PROGRAM)
 	./$(PROGRAM) -m $(ARCHIVE_FILE)
 
-.PHONY run_query
+.PHONY: run_query
 run_query: $(PROGRAM)
 	./$(PROGRAM) -q $(ARCHIVE_FILE) $(LIST_OF_FILES_DIRS)
 
-.PHONY run_print
+.PHONY: run_print
 run_print: $(PROGRAM)
 	./$(PROGRAM) -p $(ARCHIVE_FILE)
 
-.PHONY run_create_compressed
+.PHONY: run_create_compressed
 run_create_compressed: $(PROGRAM)
 	./$(PROGRAM) -jc $(ARCHIVE_FILE) $(LIST_OF_FILES_DIRS)
 
-.PHONY run_append_compressed
+.PHONY: run_append_compressed
 run_append_compressed: $(PROGRAM)
 	./$(PROGRAM) -ja $(ARCHIVE_FILE) $(LIST_OF_FILES_DIRS)
 
