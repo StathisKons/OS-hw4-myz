@@ -28,7 +28,7 @@ int main(/*int argc, char** argv*/){
     print(myz->metadata, false);
     //print_s(myz->metadata);
 
-    //printf("VECTOR SIZE: %d", vector_size(myz->metadata->nodes));
+    printf("VECTOR SIZE: %d", vector_size(myz->metadata->nodes));
     
     return 0;
 }

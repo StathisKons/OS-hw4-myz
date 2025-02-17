@@ -185,6 +185,7 @@ static MyzNode read_node(int fd)
     {
         guaranteed_read(fd, &node->data_offset, sizeof(node->data_offset));
         guaranteed_read(fd, &node->file_size, sizeof(node->file_size));
+        node->entries = NULL;
     }
     if(S_ISDIR(node->info->mode))
     {
@@ -407,167 +408,16 @@ void myz_query_for_existence(const Myz myz, int file_count, char* files[]){
     }
 }
 
-
-// void myz_append(const char* file_name, int file_count, const char* files[], bool compress){
-//     // TODO ελεγχος πρωτα αν υπαρχει το myz, αν ναι το κανεις read, αν οχι το κανεις create
-
-//     for(int i = 0 ; i < file_count ; i++){
-//         append(myz, files[i], compress);
-//     }
-// }
-
-
 void myz_extract(Myz myz){
     write_Data(myz->metadata);
 }
 
-// static int getIndex(MyzNode parent, MyzNode child)
-// {
-//     for(int i = 0; i < vector_size(parent->entries); i++)
-//     {
-//         Entry entry = vector_get_at(parent->entries, i);
-//         if(compare_names(child, entry->name))
-//             return entry->myznode_index;
-//     }
-
-//     return -1;
-
-// }
-
-// static void setIndexes(Metadata metadata, int old, int new)
-// {
-//     for(int i = 0; i < vector_size(metadata->nodes); i++)
-//     {
-//         MyzNode node = vector_get_at(metadata->nodes, i);
-//         if(node->entries == NULL) continue;
-
-//         for(int i = 0; i < vector_size(node->entries); i++)
-//         {
-//             Entry entry = vector_get_at(node->entries, i);
-//             if(entry->myznode_index  == old)
-//             {
-//                 entry->myznode_index = new;
-//             }
-//         }
-//     }
-// }
-
-// static void remove_from_entry(MyzNode node, int deleted_index)
-// {
-//     for(int size = vector_size(node->entries), i = 0; i < size; i++)
-//     {
-//         Entry entry = vector_get_at(node->entries, i);
-//         if(entry->myznode_index == deleted_index)
-//         {
-//             vector_remove_at(node->entries, i);
-//             if(vector_size(node->entries) == 0)
-//             {
-//                 vector_destroy(node->entries);
-//                 node->entries = NULL;
-//             }
-//             return;
-//         }
-//     }
-
-// }
-
-// static off_t delete_dir(Metadata metadata, MyzNode node)
-// {
-//     if(node->entries == NULL)
-//     {
-//         return 0;
-//     }
-
-//     for(int i = vector_size(node->entries) - 1; i >= 0; i--)
-//     {
-//         Entry entry = vector_get_at(node->entries, i);
-//         MyzNode tnode = vector_get_at(metadata->nodes, entry->myznode_index);
-
-//         if(!S_ISDIR(tnode->info->mode))
-//         {
-//             int old = vector_size(metadata->nodes) - 1;
-//             int new = entry->myznode_index;
-//             printf("tnode: %s\n", tnode->name);
-//             vector_remove_at(metadata->nodes, entry->myznode_index);
-//             setIndexes(metadata, old, new);
-//             return;
-//         }
-//         else if(S_ISDIR(tnode->info->mode))
-//         {
-//             int new = entry->myznode_index;
-//             delete_dir(metadata, tnode);
-//             printf("tnode: %s\n", tnode->name);
-//             int old = vector_size(metadata->nodes) - 1;
-//             vector_remove_at(metadata->nodes, entry->myznode_index);
-//             setIndexes(metadata, old, new);
-//         }
-//     }
-//     return 0;
-// }
-
-// off_t myz_delete(Myz myz, const char* filepath, bool* removed){
-//     bool exists;
-//     Metadata metadata = myz->metadata;
-//     MyzNode node = metadata_find_node(metadata, filepath, &exists);
-//     if(!exists)
-//     {
-//         *removed = false;
-//         return 0;
-//     }
-
-//     MyzNode parent = metadata_find_parent(metadata, filepath, &exists);
-//     int index = getIndex(parent, node);
-//     printf("Index %d\n", index);
-//     assert(index != -1);
-//     int swapped_ind = vector_size(metadata->nodes) - 1;
-//     off_t offset = node->data_offset;
-//     if(!S_ISDIR(node->info->mode))
-//     {   
-//         vector_remove_at(metadata->nodes, index);
-//         remove_from_entry(parent, index);
-//         setIndexes(metadata, swapped_ind, index);
-//         return node->data_offset;
-//     }
-
-//     if(S_ISDIR(node->info->mode))
-//     {
-//         delete_dir(metadata, node);
-//         printf("PARENT: %s\n", parent->name);
-//         remove_from_entry(parent, index);
-//         swapped_ind = vector_size(metadata->nodes) - 1;
-        
-//         vector_remove_at(metadata->nodes, index);
-//         printf("INDEX: %d\n", index);
-//         setIndexes(metadata, swapped_ind, index);
-//     }
-
-//     return 0;
-// }
-
-
-
-
-
-// Myz myz_create(const char* file_name, const char* files[], int file_count, bool compress){
-    
-//     Myz myz = safe_malloc(sizeof(*myz));
-//     myz->header = safe_malloc(sizeof(*myz->header));
-//     myz->metadata = metadata_create();
-
-//     // Myz myz = safe_malloc(sizeof(*myz));
-//     // myz->metadata = metadata;
-//     // myz->header = safe_malloc(sizeof(*myz->header));
-
-
-
-//     create_myz_file(myz, file_name);
-// }
 
 static void fix_indexes(Metadata metadata, int old_index, int new_index){
     bool found = false;
     for(int size = vector_size(metadata->nodes), i = 0 ; i < size ; i++){
-        printf("LOOP NO: %d\n", i);
         MyzNode node = vector_get_at(metadata->nodes, i);
+        printf("NODE NAME: %s\n", node->name);
         if(node->entries == NULL){
             continue;
         }
@@ -603,6 +453,7 @@ static void delete_non_dir(Metadata metadata, MyzNode node, MyzNode parent){
                 vector_destroy(parent_entries);
                 parent->entries = NULL;
             }
+            break;
         }
     }
 
@@ -622,17 +473,16 @@ static void delete_dir(Metadata metadata, MyzNode node){
     }
     
     Vector entries = node->entries;
-    for(int i = 0 ; i < vector_size(entries) ; i++){
+    int size = vector_size(entries);
+    for(int i = size - 1; i >= 0 ; i--){
         Entry entry = vector_get_at(entries, i);
         MyzNode child = vector_get_at(metadata->nodes, entry->myznode_index);
         if(S_ISDIR(child->info->mode)){
             delete_dir(metadata, child);
             delete_non_dir(metadata, child, node);
-            i--;
         }
         else {
             delete_non_dir(metadata, child, node);
-            i--;    // delete non dir βαζει το προηγουμενο last στο index i
         }
     }
 
@@ -651,7 +501,6 @@ static bool delete_node(Metadata metadata, char* file){
     printf("%s\n", file);
     MyzNode node = metadata_find_node(metadata, file, &exists);
     if(!exists){
-        printf("\t\t HERE\n");
         return false;
     }
 
@@ -670,7 +519,6 @@ static bool delete_node(Metadata metadata, char* file){
 void myz_delete(Myz myz, int file_number, char* files[]){
     for(int i = 0 ; i < file_number ; i++){
         bool removed = delete_node(myz->metadata, files[i]);
-        printf("\n\t file %s\n\n", files[i]);
 
         if(!removed){
             printf("%s does not exist\n", files[i]);
