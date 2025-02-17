@@ -201,7 +201,7 @@ Myz read_myz_file(const char* name)
     for(int i = 0; i < metadata_entries; i++)
     {
         MyzNode node = vector_get_at(myz->metadata->nodes, i);
-        if(S_ISREG(node->info->mode))
+        if(S_ISREG(node->info->mode) || S_ISLNK(node->info->mode))
         {
             if(node->data_offset == -1)
             {
@@ -281,7 +281,6 @@ bool append(Myz myz, const char* path, bool compressed)
     bool exists;
 
     MyzNode node = metadata_find_node(metadata, path, &exists);
-    printf("NODE: %s\n", node->name);
     if(exists)
     {
         free(tpath);
@@ -552,13 +551,12 @@ static void write_after_delete(Myz myz, const char* file_name, off_t min_offset)
 
 void myz_create(const char* file_name, int file_count, const char* files[], bool compress){
     assert(file_count > 0);
-    Metadata metadata = metadata_create();
 
     Myz myz = safe_malloc(sizeof(*myz));
     myz->metadata = metadata_create();
     myz->header = safe_malloc(sizeof(*myz->header));
 
-    read_Data(metadata, files[0], compress);
+    read_Data(myz->metadata, files[0], compress);
 
     for(int i = 1 ; i < file_count ; i++){
         append(myz, files[i], compress);

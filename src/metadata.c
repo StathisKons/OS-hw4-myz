@@ -183,7 +183,6 @@ void read_data(const char* path, Metadata metadata, bool compressed, int dir_ind
 		sprintf(fpath, "%s/%s", path, entries->d_name);
 		
 		struct stat info;
-		printf("fpath: %s\n", fpath);
 		safe_sys(lstat(fpath, &info));
 
 		char* fdata = NULL;
@@ -405,7 +404,8 @@ static void write_l(Metadata metadata, MyzNode node, char* path, bool* visited)
 			strcat(tpath, path);
 			strcat(tpath, "/");
 			strcat(tpath, tnode->name);
-// printf("\t\t %s\n", tnode->name);
+			printf("\t\t %s\n", tnode->name);
+			printf("\t\t%s\n", tnode->file_data);
 			assert(tnode->file_data != NULL);
 			printf("%s\n", tnode->file_data);
 			symlink(tnode->file_data, tpath);
@@ -540,7 +540,6 @@ void print_s(Metadata metadata)
 	for(int i = 0; i < vector_size(metadata->nodes); i++)
 	{
 		MyzNode node = vector_get_at(metadata->nodes, i);
-		printf("INDEX: %d\tNAME: %s", i, node->name);
 		if(!S_ISDIR(node->info->mode))
 		{
 			printf("\t%ld", node->data_offset);
